@@ -1,49 +1,59 @@
 package com.cragnet.wysawyg
 
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.graphics.PixelFormat
-import android.os.Build
+import android.graphics.Rect
 import android.os.IBinder
 import android.view.Gravity
+import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.ImageButton
+import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class OverlayService : Service() {
-
+    private enum class State { IDLE, RECORDING, BUSY }
     private lateinit var windowManager: WindowManager
-    private var overlayView: View? = null
-    private var miniTriggerView: View? = null
-    private lateinit var overlayParams: WindowManager.LayoutParams
-    private lateinit var miniParams: WindowManager.LayoutParams
     private lateinit var audioRecorder: AudioRecorder
-    private lateinit var ollamaClient: OllamaClient
-    private var isRecording = false
-    private var isTranscribing = false
-
-    private lateinit var cancelButton: ImageButton
-    private lateinit var acceptButton: ImageButton
-    private lateinit var waveformView: WaveformView
+    private lateinit var client: OllamaClient
+    private var bubble: View? = null
+    private var button: ImageButton? = null
+    private var progress: ProgressBar? = null
+    private lateinit var parameters: WindowManager.LayoutParams
+    private var state = State.IDLE
+    private var editorVisible = false
+    private var keyboardBounds = Rect()
+    private var target: TextInjectorService.Target? = null
+    private var movedByUser = false
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     companion object {
         private const val CHANNEL_ID = "wysawyg_overlay"
-        private const val NOTIFICATION_ID = 1
+        private const val STOP = "com.cragnet.wysawyg.STOP_DICTATION"
         private var instance: OverlayService? = null
-
         fun isRunning(): Boolean = instance != null
+        fun updateEditor(visible: Boolean, keyboard: Rect) {
+            instance?.onEditorChanged(visible, keyboard)
+        }
     }
 
     override fun onCreate() {
@@ -52,320 +62,226 @@ class OverlayService : Service() {
         WysawygLogger.init(this)
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         audioRecorder = AudioRecorder(this)
-        ollamaClient = OllamaClient(this)
-        createNotificationChannel()
-        WysawygLogger.i("Overlay service created")
+        client = OllamaClient(this)
+        getSystemService(NotificationManager::class.java).createNotificationChannel(
+            NotificationChannel(CHANNEL_ID, "Dictation", NotificationManager.IMPORTANCE_LOW)
+        )
+        val size = dp(52)
+        parameters = WindowManager.LayoutParams(
+            size, size, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT
+        ).apply { gravity = Gravity.TOP or Gravity.START }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val notification = buildNotification()
-        startForeground(NOTIFICATION_ID, notification)
-        WysawygLogger.i("Overlay service started by user")
-        showOverlay()
-        return START_STICKY
+        if (intent?.action == STOP) {
+            getSharedPreferences(MainActivity.PREFS_NAME, MODE_PRIVATE).edit()
+                .putBoolean(MainActivity.PREF_OVERLAY_ENABLED, false).apply()
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+        val stop = PendingIntent.getService(this, 1, Intent(this, OverlayService::class.java).setAction(STOP), PendingIntent.FLAG_IMMUTABLE)
+        startForeground(1, NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("WYSAWYG dictation")
+            .setContentText("The microphone appears when your keyboard is open")
+            .setSmallIcon(R.drawable.ic_dictation_mic)
+            .setContentIntent(open).setOngoing(true)
+            .addAction(0, "Pause", stop).build())
+        getSharedPreferences(MainActivity.PREFS_NAME, MODE_PRIVATE).edit()
+            .putBoolean(MainActivity.PREF_OVERLAY_ENABLED, true).apply()
+        TextInjectorService.instance?.refreshEditor()
+        return START_NOT_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    override fun onDestroy() {
-        if (isRecording) cancelRecording()
-        hideAll()
-        instance = null
-        super.onDestroy()
-    }
-
-    private fun runOnMain(block: () -> Unit) {
-        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
-            block()
+    private fun onEditorChanged(visible: Boolean, keyboard: Rect) {
+        editorVisible = visible
+        keyboardBounds = Rect(keyboard)
+        if (!visible) {
+            hideBubble()
+            if (state == State.RECORDING) cancelRecording()
         } else {
-            android.os.Handler(android.os.Looper.getMainLooper()).post(block)
+            showBubble()
         }
     }
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Wysawyg Overlay",
-                NotificationManager.IMPORTANCE_LOW
-            )
-            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+    private fun showBubble() {
+        if (bubble != null) {
+            if (!movedByUser) {
+                positionAboveKeyboard()
+            } else {
+                parameters.x = parameters.x.coerceIn(0, (resources.displayMetrics.widthPixels - parameters.width).coerceAtLeast(0))
+                parameters.y = parameters.y.coerceIn(0, (keyboardBounds.top - parameters.height - dp(24)).coerceAtLeast(0))
+                bubble?.let { windowManager.updateViewLayout(it, parameters) }
+            }
+            return
         }
-    }
-
-    private fun buildNotification(): Notification {
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Wysawyg")
-            .setContentText("Dictation overlay active")
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setOngoing(true)
-            .build()
-    }
-
-    private fun hideAll() {
-        overlayView?.let {
-            try { windowManager.removeView(it) } catch (e: Exception) { WysawygLogger.e("Error removing overlay", e) }
-        }
-        overlayView = null
-        miniTriggerView?.let {
-            try { windowManager.removeView(it) } catch (e: Exception) { WysawygLogger.e("Error removing mini trigger", e) }
-        }
-        miniTriggerView = null
-    }
-
-    private fun showOverlay() {
         try {
-            hideMiniTrigger()
-            if (overlayView != null) {
-                overlayView?.visibility = View.VISIBLE
-                return
-            }
-
-            overlayView = LayoutInflater.from(this).inflate(R.layout.overlay_button, null)
-            cancelButton = overlayView!!.findViewById(R.id.cancelButton)
-            acceptButton = overlayView!!.findViewById(R.id.acceptButton)
-            waveformView = overlayView!!.findViewById(R.id.waveformView)
-
-            overlayParams = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                else WindowManager.LayoutParams.TYPE_PHONE,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-                PixelFormat.TRANSLUCENT
-            ).apply {
-                gravity = Gravity.TOP or Gravity.START
-                x = 50
-                y = 200
-            }
-
-            windowManager.addView(overlayView, overlayParams)
-
-            setIdleState()
-            makeDraggable(overlayView!!, overlayParams)
-
-            cancelButton.setOnClickListener {
-                WysawygLogger.i("Cancel button clicked")
-                if (isRecording) {
-                    cancelRecording()
-                } else {
-                    hideOverlay()
-                    showMiniTrigger()
+            val view = LayoutInflater.from(this).inflate(R.layout.overlay_button, null)
+            button = view.findViewById(R.id.dictationButton)
+            progress = view.findViewById(R.id.dictationProgress)
+            if (!movedByUser) positionAboveKeyboard(update = false)
+            windowManager.addView(view, parameters)
+            bubble = view
+            button?.setOnClickListener {
+                it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                when (state) {
+                    State.IDLE -> startRecording()
+                    State.RECORDING -> stopAndTranscribe()
+                    State.BUSY -> Unit
                 }
             }
-
-            acceptButton.setOnClickListener {
-                WysawygLogger.i("Accept button clicked")
-                if (isRecording) {
-                    stopAndTranscribe()
-                } else {
-                    startRecording()
-                }
+            button?.setOnLongClickListener {
+                if (state == State.RECORDING) cancelRecording()
+                true
             }
-
-            waveformView.setOnClickListener {
-                WysawygLogger.i("Waveform clicked, isRecording=$isRecording")
-                if (!isRecording) {
-                    startRecording()
-                } else {
-                    stopAndTranscribe()
-                }
-            }
-            WysawygLogger.i("Overlay shown")
+            button?.let { makeDraggable(it) }
+            renderState()
+            WysawygLogger.i("Dictation button shown")
         } catch (e: Exception) {
-            WysawygLogger.e("Failed to show overlay", e)
-            Toast.makeText(this, "Overlay failed: ${e.message}", Toast.LENGTH_LONG).show()
+            WysawygLogger.e("Unable to show dictation button", e)
+            hideBubble()
         }
     }
 
-    private fun hideOverlay() {
-        overlayView?.let {
-            try { windowManager.removeView(it) } catch (e: Exception) { WysawygLogger.e("Error hiding overlay", e) }
-        }
-        overlayView = null
+    private fun positionAboveKeyboard(update: Boolean = true) {
+        val width = resources.displayMetrics.widthPixels
+        parameters.x = width - parameters.width - dp(16)
+        // TOP coordinates already exclude the status bar; avoid the keyboard toolbar.
+        val statusBarId = resources.getIdentifier("status_bar_height", "dimen", "android")
+        val statusBar = if (statusBarId != 0) resources.getDimensionPixelSize(statusBarId) else dp(24)
+        parameters.y = (keyboardBounds.top - parameters.height - dp(12) - statusBar).coerceAtLeast(dp(12))
+        if (update) bubble?.let { windowManager.updateViewLayout(it, parameters) }
     }
 
-    private fun showMiniTrigger() {
-        try {
-            if (miniTriggerView != null) return
+    private fun hideBubble() {
+        bubble?.let { runCatching { windowManager.removeView(it) } }
+        bubble = null
+        button = null
+        progress = null
+    }
 
-            miniTriggerView = LayoutInflater.from(this).inflate(R.layout.mini_trigger, null)
-            val button = miniTriggerView!!.findViewById<ImageButton>(R.id.miniRecordButton)
-
-            miniParams = WindowManager.LayoutParams(
-                64, 64,
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                else WindowManager.LayoutParams.TYPE_PHONE,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-                PixelFormat.TRANSLUCENT
-            ).apply {
-                gravity = Gravity.TOP or Gravity.START
-                x = 50
-                y = 200
+    private fun renderState() {
+        button?.apply {
+            backgroundTintList = ColorStateList.valueOf(Color.parseColor(if (state == State.RECORDING) "#E54B5F" else "#465BE8"))
+            setImageResource(if (state == State.RECORDING) R.drawable.ic_dictation_stop else R.drawable.ic_dictation_mic)
+            imageAlpha = if (state == State.BUSY) 0 else 255
+            contentDescription = when (state) {
+                State.IDLE -> "Start dictation"
+                State.RECORDING -> "Finish dictation. Hold to cancel"
+                State.BUSY -> "Transcribing"
             }
-
-            windowManager.addView(miniTriggerView, miniParams)
-            makeDraggable(miniTriggerView!!, miniParams)
-
-            button.setOnClickListener {
-                WysawygLogger.i("Mini trigger clicked")
-                showOverlay()
-            }
-            WysawygLogger.i("Mini trigger shown")
-        } catch (e: Exception) {
-            WysawygLogger.e("Failed to show mini trigger", e)
         }
-    }
-
-    private fun hideMiniTrigger() {
-        miniTriggerView?.let {
-            try { windowManager.removeView(it) } catch (e: Exception) { WysawygLogger.e("Error hiding mini trigger", e) }
-        }
-        miniTriggerView = null
-    }
-
-    private fun setIdleState() {
-        isTranscribing = false
-        isRecording = false
-        waveformView.stopAnimation()
-        acceptButton.setImageResource(android.R.drawable.ic_btn_speak_now)
-        acceptButton.contentDescription = "Record"
-        waveformView.alpha = 0.5f
-    }
-
-    private fun setRecordingState() {
-        isRecording = true
-        waveformView.startAnimation()
-        acceptButton.setImageResource(android.R.drawable.ic_menu_save)
-        acceptButton.contentDescription = "Accept"
-        waveformView.alpha = 1.0f
+        progress?.visibility = if (state == State.BUSY) View.VISIBLE else View.GONE
     }
 
     private fun startRecording() {
-        if (isTranscribing) return
+        target = TextInjectorService.instance?.captureTarget()
+        if (target == null) return
         try {
             audioRecorder.start()
-            setRecordingState()
+            state = State.RECORDING
+            renderState()
             WysawygLogger.i("Overlay recording started")
-            Toast.makeText(this, "Recording...", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            WysawygLogger.e("Failed to start overlay recording", e)
-            setIdleState()
-            Toast.makeText(this, "Recording failed", Toast.LENGTH_SHORT).show()
+            WysawygLogger.e("Recording failed", e)
+            Toast.makeText(this, "Could not use the microphone. Check microphone permission.", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun cancelRecording() {
-        try {
-            audioRecorder.stop()
-            WysawygLogger.i("Overlay recording cancelled")
-        } catch (e: Exception) {
-            WysawygLogger.e("Error cancelling recording", e)
+        target = null
+        state = State.BUSY
+        renderState()
+        scope.launch {
+            withContext(Dispatchers.IO) { runCatching { audioRecorder.stop() } }
+            state = State.IDLE
+            renderState()
         }
-        setIdleState()
-        Toast.makeText(this, "Cancelled", Toast.LENGTH_SHORT).show()
     }
 
     private fun stopAndTranscribe() {
-        if (!isRecording) return
-        isRecording = false
-        isTranscribing = true
-        waveformView.stopAnimation()
-
-        CoroutineScope(Dispatchers.IO).launch {
+        val destination = target ?: return
+        state = State.BUSY
+        renderState()
+        scope.launch {
             try {
-                val wavBytes = audioRecorder.stop()
-                WysawygLogger.i("Overlay audio captured: ${wavBytes.size} bytes")
-                val text = ollamaClient.transcribe(wavBytes)
-                WysawygLogger.i("Overlay transcription: $text")
-                withContext(Dispatchers.Main) {
-                    if (text.isNotBlank()) {
-                        TextInjectorService.inject(this@OverlayService, text)
-                        Toast.makeText(this@OverlayService, "Inserted: $text", Toast.LENGTH_LONG).show()
-                    } else {
-                        Toast.makeText(this@OverlayService, "No transcription", Toast.LENGTH_SHORT).show()
+                val audio = withContext(Dispatchers.IO) { audioRecorder.stop() }
+                val text = client.transcribe(audio)
+                if (text.isNotBlank()) {
+                    val result = TextInjectorService.instance?.insert(destination, text)
+                    when (result) {
+                        TextInjectorService.InsertResult.INSERTED -> WysawygLogger.i("Dictation inserted directly")
+                        TextInjectorService.InsertResult.UNSUPPORTED -> Toast.makeText(this@OverlayService,
+                            "This field does not support direct dictation. Try the WYSAWYG keyboard.", Toast.LENGTH_LONG).show()
+                        else -> Toast.makeText(this@OverlayService,
+                            "The text field changed. Dictation was not inserted.", Toast.LENGTH_LONG).show()
                     }
-                    setIdleState()
+                } else {
+                    Toast.makeText(this@OverlayService, "No speech detected", Toast.LENGTH_SHORT).show()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                WysawygLogger.e("Overlay transcription failed", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@OverlayService, "Transcription failed: ${e.message}", Toast.LENGTH_LONG).show()
-                    setIdleState()
-                }
+                WysawygLogger.e("Transcription failed", e)
+                Toast.makeText(this@OverlayService, "Transcription failed: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                target = null
+                state = State.IDLE
+                renderState()
             }
         }
     }
 
-    private fun makeDraggable(view: View, layoutParams: WindowManager.LayoutParams) {
-        var initialX = 0
-        var initialY = 0
-        var touchX = 0f
-        var touchY = 0f
+    private fun makeDraggable(view: View) {
+        var x = 0
+        var y = 0
+        var downX = 0f
+        var downY = 0f
         var dragging = false
-
+        val slop = ViewConfiguration.get(this).scaledTouchSlop
         view.setOnTouchListener { _, event ->
-            when (event.action) {
+            when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    initialX = layoutParams.x
-                    initialY = layoutParams.y
-                    touchX = event.rawX
-                    touchY = event.rawY
+                    x = parameters.x; y = parameters.y
+                    downX = event.rawX; downY = event.rawY
                     dragging = false
-                    true
+                    false // Let the button handle clicks and hold-to-cancel.
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    val dx = event.rawX - touchX
-                    val dy = event.rawY - touchY
-                    if (kotlin.math.abs(dx) > 10 || kotlin.math.abs(dy) > 10) {
-                        dragging = true
-                        layoutParams.x = initialX + dx.toInt()
-                        layoutParams.y = initialY + dy.toInt()
-                        windowManager.updateViewLayout(view, layoutParams)
+                    val dx = event.rawX - downX
+                    val dy = event.rawY - downY
+                    if (kotlin.math.abs(dx) > slop || kotlin.math.abs(dy) > slop) dragging = true
+                    if (dragging) {
+                        view.cancelLongPress()
+                        view.isPressed = false
+                        movedByUser = true
+                        parameters.x = (x + dx.toInt()).coerceIn(0, (resources.displayMetrics.widthPixels - parameters.width).coerceAtLeast(0))
+                        parameters.y = (y + dy.toInt()).coerceIn(0, (keyboardBounds.top - parameters.height - dp(24)).coerceAtLeast(0))
+                        bubble?.let { windowManager.updateViewLayout(it, parameters) }
                     }
-                    true
+                    dragging
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!dragging) {
-                        WysawygLogger.i("Touch released on overlay (not drag), delegating click")
-                        dispatchClickToChild(view, event)
-                    }
-                    true
+                    if (dragging) { view.isPressed = false; true } else false
                 }
+                MotionEvent.ACTION_CANCEL -> { view.isPressed = false; false }
                 else -> false
             }
         }
     }
 
-    private fun dispatchClickToChild(parent: View, event: MotionEvent) {
-        val location = IntArray(2)
-        parent.getLocationOnScreen(location)
-        val x = event.rawX - location[0]
-        val y = event.rawY - location[1]
-        val child = findViewAtPosition(parent, x.toInt(), y.toInt())
-        if (child != null && child.isClickable) {
-            WysawygLogger.i("Dispatching click to child: ${child.contentDescription ?: child.id}")
-            child.performClick()
-        } else {
-            WysawygLogger.i("No clickable child under touch point")
-        }
+    override fun onDestroy() {
+        runCatching { audioRecorder.close() }
+        scope.cancel()
+        hideBubble()
+        instance = null
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        super.onDestroy()
     }
 
-    private fun findViewAtPosition(parent: View, x: Int, y: Int): View? {
-        if (parent !is android.view.ViewGroup) {
-            return if (isPointInsideView(parent, x, y)) parent else null
-        }
-        for (i in parent.childCount - 1 downTo 0) {
-            val child = parent.getChildAt(i)
-            if (isPointInsideView(child, x, y)) {
-                val found = findViewAtPosition(child, x - child.left, y - child.top)
-                if (found != null) return found
-            }
-        }
-        return if (isPointInsideView(parent, x, y)) parent else null
-    }
-
-    private fun isPointInsideView(view: View, x: Int, y: Int): Boolean {
-        return x >= view.left && x <= view.right && y >= view.top && y <= view.bottom && view.visibility == View.VISIBLE
-    }
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 }

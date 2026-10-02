@@ -19,6 +19,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val PERMISSION_REQUEST_CODE = 1001
         private const val OVERLAY_REQUEST_CODE = 1002
+        const val PREF_OVERLAY_ENABLED = "overlay_enabled"
         const val PREFS_NAME = "wysawyg"
         const val PREF_ALARMA_URL = "alarma_url"
         const val PREF_API_KEY = "api_key"
@@ -57,6 +58,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.stopOverlayButton).setOnClickListener {
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putBoolean(PREF_OVERLAY_ENABLED, false).apply()
             stopService(Intent(this, OverlayService::class.java))
         }
 
@@ -98,7 +100,17 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        findViewById<Button>(R.id.tryDictationButton).setOnClickListener {
+            saveSettings()
+            startActivity(Intent(this, DictationTestActivity::class.java))
+        }
         loadSettings()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean(PREF_OVERLAY_ENABLED, false) &&
+            hasPermissions() && !OverlayService.isRunning()) startOverlayService()
     }
 
     override fun onPause() {
@@ -141,6 +153,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startOverlayService() {
+        if (TextInjectorService.instance == null) {
+            Toast.makeText(this, "Enable WYSAWYG Accessibility to show dictation when you type", Toast.LENGTH_LONG).show()
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            return
+        }
         try {
             val intent = Intent(this, OverlayService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

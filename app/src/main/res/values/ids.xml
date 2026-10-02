@@ -1,0 +1,4 @@
+<resources>
+    <item name="dictationTestEditor" type="id" />
+    <item name="dictationTestSecondEditor" type="id" />
+</resources>

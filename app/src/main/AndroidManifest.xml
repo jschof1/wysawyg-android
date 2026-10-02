@@ -31,6 +31,9 @@
             android:exported="false"
             android:foregroundServiceType="microphone" />
 
+        <activity android:name=".DictationTestActivity" android:exported="false"
+            android:windowSoftInputMode="adjustResize|stateAlwaysHidden" />
+
         <activity
             android:name=".LogActivity"
             android:exported="false" />

@@ -43,12 +43,32 @@ provider's Free plan to avoid paid usage. Audio is uploaded to the configured pr
 Microphone permission is required. Enable the keyboard in Android input settings and
 select it from the keyboard switcher. The optional overlay additionally needs Display
 over other apps permission, and Accessibility for automatic insertion. Without an
-editable field, text is copied to the clipboard. Settings export currently includes the
+editable field and an open keyboard, the floating button stays hidden. Settings export currently includes the
 API key; keep exported files private. The installed debug APK permits ADB inspection
 from an authorised computer.
 
 Build verification: `./gradlew assembleDebug lintDebug` (JDK 17 or 21, Android SDK 34).
-Samsung A55 / Android 15: installation and settings launch verified. Fixed waveform
-view inflation, cursor insertion, saving, recording state, cloud request format, and
-scrollable settings. Provider transcription verified with a generated speech sample;
-real microphone dictation still requires a phone test.
+Version 1.0 was installed and used successfully on Samsung A55 / Android 15, with
+Groq cloud transcription. Version 1.1 replaces the waveform panel with a small
+microphone button, shown only for an editable, non-password field with a visible
+software keyboard. Tap to record, tap again to finish, hold to cancel, drag to move.
+The button turns red while recording and shows a spinner while transcribing.
+
+The floating mode works with your existing keyboard. Enable Android Accessibility
+and floating dictation in WYSAWYG settings. Dictation uses Android Accessibility's
+SET_TEXT and SET_SELECTION actions directly, preserving surrounding text, replacing
+only the selection, adding word spacing, and moving the cursor after the insertion.
+The clipboard is never changed. Apps that do not expose editable fields or permit
+SET_TEXT need the optional WYSAWYG keyboard, which uses InputConnection.commitText.
+This is a platform compatibility limit; the app reports failed insertion.
+
+Closing the keyboard hides the button and cancels an active recording. If the field,
+text or cursor changes while transcription runs, the result is not inserted into
+another location. Password fields do not show the button. The notification allows
+pausing the service; after an app/process restart, open settings to resume it.
+
+Try dictation opens a local scratch screen without sending messages or changing
+provider settings. JVM tests cover cursor edits and selected ranges. Device tests
+verify keyboard visibility, direct insertion, clipboard preservation and changed-field
+and password handling. Run them on an Android device with microphone, overlay and
+accessibility access enabled: `./gradlew connectedDebugAndroidTest`.

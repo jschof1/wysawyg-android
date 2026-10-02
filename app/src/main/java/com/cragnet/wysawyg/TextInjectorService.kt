@@ -1,133 +1,108 @@
 package com.cragnet.wysawyg
 
 import android.accessibilityservice.AccessibilityService
-import android.content.Context
-import android.content.Intent
+import android.graphics.Rect
 import android.os.Bundle
-import android.provider.Settings
+import android.os.Handler
+import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import android.widget.Toast
+import android.view.accessibility.AccessibilityWindowInfo
 
+/** Observes the visible editor and inserts directly, without touching the clipboard. */
 class TextInjectorService : AccessibilityService() {
+    data class Target(
+        val node: AccessibilityNodeInfo,
+        val text: String,
+        val selectionStart: Int,
+        val selectionEnd: Int,
+        val generation: Long
+    )
+    enum class InsertResult { INSERTED, TARGET_CHANGED, UNSUPPORTED }
 
     companion object {
-        private const val TAG = "TextInjectorService"
-        var focusedEditableNode: AccessibilityNodeInfo? = null
         var instance: TextInjectorService? = null
             private set
-
-        fun inject(context: Context, text: String) {
-            if (instance == null) {
-                WysawygLogger.w("Accessibility service not enabled — copying to clipboard")
-                copyToClipboard(context, text)
-                Toast.makeText(context, "Enable Wysawyg accessibility service to insert text automatically", Toast.LENGTH_LONG).show()
-                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                })
-            } else {
-                instance?.performInjection(text)
-            }
-        }
-
-        private fun copyToClipboard(context: Context, text: String) {
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("dictation", text))
-        }
     }
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var editor: AccessibilityNodeInfo? = null
+    private var keyboardVisible = false
+    private var generation = 0L
+    private val refresh = Runnable { refreshEditor() }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        WysawygLogger.i("Accessibility service connected")
+        WysawygLogger.init(this)
+        refreshEditor()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        when (event?.eventType) {
-            AccessibilityEvent.TYPE_VIEW_FOCUSED,
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
-                try {
-                    val node = event.source
-                    WysawygLogger.i("Accessibility event: ${AccessibilityEvent.eventTypeToString(event.eventType)}, package=${event.packageName}, editable=${node?.isEditable}")
-                    if (node != null && node.isEditable) {
-                        focusedEditableNode = node
-                        WysawygLogger.i("Focused editable node: ${node.className} ${node.viewIdResourceName}")
-                    } else if (node != null && !node.isEditable) {
-                        val root = rootInActiveWindow
-                        val focused = root?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-                        if (focused?.isEditable == true) {
-                            focusedEditableNode = focused
-                            WysawygLogger.i("Focused editable node from root: ${focused.className}")
-                        }
-                    }
-                } catch (e: Exception) {
-                    WysawygLogger.e("Error handling accessibility event", e)
-                }
+        // Window events include the keyboard being dismissed without losing editor focus.
+        handler.removeCallbacks(refresh)
+        handler.postDelayed(refresh, 50)
+    }
+
+    fun refreshEditor() {
+        try {
+            val visibleWindows = windows
+            val keyboard = visibleWindows.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+            val keyboardBounds = Rect().also { keyboard?.getBoundsInScreen(it) }
+            val application = visibleWindows.firstOrNull {
+                it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isFocused
             }
+            val focused = application?.root?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+            val candidate = focused?.takeIf { it.isEditable && it.isFocused && it.isVisibleToUser && !it.isPassword }
+            if (candidate != editor || keyboardVisible != (keyboard != null)) generation++
+            editor = candidate
+            keyboardVisible = keyboard != null
+            OverlayService.updateEditor(candidate != null && keyboardVisible, keyboardBounds)
+        } catch (e: Exception) {
+            editor = null
+            keyboardVisible = false
+            generation++
+            OverlayService.updateEditor(false, Rect())
+            WysawygLogger.e("Unable to inspect focused editor", e)
         }
     }
 
-    override fun onInterrupt() {}
+    fun captureTarget(): Target? {
+        refreshEditor()
+        val node = editor?.takeIf { keyboardVisible && it.refresh() } ?: return null
+        return Target(node, node.text?.toString().orEmpty(), node.textSelectionStart, node.textSelectionEnd, generation)
+    }
+
+    fun insert(target: Target, text: String): InsertResult {
+        refreshEditor()
+        val current = editor ?: return InsertResult.TARGET_CHANGED
+        if (!keyboardVisible || target.generation != generation || current != target.node ||
+            !current.refresh() || current.text?.toString().orEmpty() != target.text ||
+            current.textSelectionStart != target.selectionStart || current.textSelectionEnd != target.selectionEnd) {
+            return InsertResult.TARGET_CHANGED
+        }
+        val edit = DictationText.insert(target.text, target.selectionStart, target.selectionEnd, text)
+        val arguments = Bundle().apply {
+            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, edit.text)
+        }
+        if (!current.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)) return InsertResult.UNSUPPORTED
+        current.performAction(AccessibilityNodeInfo.ACTION_SET_SELECTION, Bundle().apply {
+            putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, edit.cursor)
+            putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, edit.cursor)
+        })
+        return InsertResult.INSERTED
+    }
+
+    override fun onInterrupt() {
+        editor = null
+        generation++
+        OverlayService.updateEditor(false, Rect())
+    }
 
     override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
         instance = null
-        focusedEditableNode = null
+        OverlayService.updateEditor(false, Rect())
         super.onDestroy()
-    }
-
-    private fun performInjection(text: String) {
-        WysawygLogger.i("Performing injection for text length=${text.length}")
-        var node = rootInActiveWindow?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-            ?: focusedEditableNode?.takeIf { it.refresh() }
-        if (node == null) {
-            val root = rootInActiveWindow
-            if (root == null) {
-                WysawygLogger.w("No active window — copying to clipboard")
-                fallbackToClipboard(text)
-                return
-            }
-            node = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-        }
-
-        if (node == null) {
-            WysawygLogger.w("No focused editable node — copying to clipboard")
-            fallbackToClipboard(text)
-            return
-        }
-
-        if (!node.isEditable) {
-            WysawygLogger.w("Focused node is not editable — copying to clipboard")
-            fallbackToClipboard(text)
-            return
-        }
-
-        val existing = node.text?.toString().orEmpty()
-        val start = node.textSelectionStart.takeIf { it >= 0 } ?: existing.length
-        val end = node.textSelectionEnd.takeIf { it >= 0 } ?: start
-        val inserted = existing.substring(0, minOf(start, end).coerceAtMost(existing.length)) +
-            text + existing.substring(maxOf(start, end).coerceAtMost(existing.length))
-        val args = Bundle().apply {
-            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, inserted)
-        }
-        val success = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
-        WysawygLogger.i("Inject text success=$success")
-
-        if (!success) {
-            fallbackPaste(node, text)
-        }
-    }
-
-    private fun fallbackPaste(node: AccessibilityNodeInfo, text: String) {
-        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("dictation", text))
-        val success = node.performAction(AccessibilityNodeInfo.ACTION_PASTE)
-        WysawygLogger.i("Fallback paste success=$success")
-    }
-
-    private fun fallbackToClipboard(text: String) {
-        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("dictation", text))
-        Toast.makeText(this, "No focused text field — copied to clipboard", Toast.LENGTH_SHORT).show()
     }
 }

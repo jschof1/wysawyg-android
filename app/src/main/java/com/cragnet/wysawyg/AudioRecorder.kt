@@ -7,10 +7,7 @@ import androidx.core.content.ContextCompat
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
-import android.util.Log
 import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.FileOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -37,77 +34,73 @@ class AudioRecorder(private val context: Context) {
         val bufferSize = minBufferSize.coerceAtLeast(4096)
         WysawygLogger.i("AudioRecorder.start: minBufferSize=$minBufferSize bufferSize=$bufferSize")
 
-        audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
-            SAMPLE_RATE,
-            CHANNEL_CONFIG,
-            AUDIO_FORMAT,
-            bufferSize
+        val recorder = AudioRecord(
+            MediaRecorder.AudioSource.MIC, SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT, bufferSize
         )
-
-        if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
-            WysawygLogger.e("AudioRecord failed to initialize")
-            throw IllegalStateException("AudioRecord not initialized")
+        try {
+            check(recorder.state == AudioRecord.STATE_INITIALIZED) { "Microphone not available" }
+            recorder.startRecording()
+        } catch (e: Exception) {
+            recorder.release()
+            throw e
         }
-
-        audioRecord?.startRecording()
+        audioRecord = recorder
+        recordingError = null
         isRecording = true
-
-        val buffer = ByteArray(bufferSize)
-        val outputStream = ByteArrayOutputStream()
-
         recordingThread = Thread {
-            while (isRecording) {
-                val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
-                if (read > 0) {
-                    outputStream.write(buffer, 0, read)
-                } else if (read < 0) {
-                    isRecording = false
+            val output = ByteArrayOutputStream()
+            val buffer = ByteArray(bufferSize)
+            try {
+                while (isRecording) {
+                    val read = recorder.read(buffer, 0, buffer.size, AudioRecord.READ_NON_BLOCKING)
+                    when {
+                        read > 0 -> output.write(buffer, 0, read)
+                        read < 0 -> error("Microphone read failed ($read)")
+                        else -> Thread.sleep(10)
+                    }
                 }
+                lastRecording = encodeWav(output.toByteArray())
+            } catch (e: Exception) {
+                recordingError = e
+            } finally {
+                isRecording = false
+                runCatching { recorder.stop() }
+                recorder.release()
+                audioRecord = null
+                output.close()
             }
-
-            val pcmBytes = outputStream.toByteArray()
-            outputStream.close()
-            audioRecord?.let { if (it.recordingState == AudioRecord.RECORDSTATE_RECORDING) it.stop() }
-            audioRecord?.release()
-            audioRecord = null
-
-            val wavFile = File(context.cacheDir, "recording.wav")
-            writeWav(wavFile, pcmBytes)
-            lastRecording = wavFile.readBytes()
-        }.apply { start() }
+        }.apply { name = "WysawygAudio"; start() }
     }
 
-    fun stop(): ByteArray {
+    @Synchronized fun stop(): ByteArray {
         isRecording = false
-        audioRecord?.let { if (it.recordingState == AudioRecord.RECORDSTATE_RECORDING) it.stop() }
         recordingThread?.join(5000)
         check(recordingThread?.isAlive != true) { "Recording did not stop" }
         recordingThread = null
+        recordingError?.let { throw IllegalStateException("Could not capture audio", it) }
         return lastRecording ?: throw IllegalStateException("No recording captured")
     }
 
-    private fun writeWav(file: File, pcmBytes: ByteArray) {
-        FileOutputStream(file).use { out ->
-            val totalDataLen = pcmBytes.size + 36
-            val longSampleRate = SAMPLE_RATE.toLong()
-            val byteRate = (16 * SAMPLE_RATE * 1 / 8).toLong()
+    @Synchronized fun close() {
+        if (recordingThread != null) stop()
+        lastRecording = null
+    }
 
-            out.write("RIFF".toByteArray())
-            out.write(intToByteArray(totalDataLen))
-            out.write("WAVE".toByteArray())
-            out.write("fmt ".toByteArray())
-            out.write(intToByteArray(16))
-            out.write(shortToByteArray(1))
-            out.write(shortToByteArray(1))
-            out.write(intToByteArray(longSampleRate.toInt()))
-            out.write(intToByteArray(byteRate.toInt()))
-            out.write(shortToByteArray((16 * 1 / 8).toShort()))
-            out.write(shortToByteArray(16))
-            out.write("data".toByteArray())
-            out.write(intToByteArray(pcmBytes.size))
-            out.write(pcmBytes)
-        }
+    private fun encodeWav(pcm: ByteArray): ByteArray = ByteArrayOutputStream(pcm.size + 44).use { out ->
+        out.write("RIFF".toByteArray())
+        out.write(intToByteArray(pcm.size + 36))
+        out.write("WAVEfmt ".toByteArray())
+        out.write(intToByteArray(16))
+        out.write(shortToByteArray(1))
+        out.write(shortToByteArray(1))
+        out.write(intToByteArray(SAMPLE_RATE))
+        out.write(intToByteArray(SAMPLE_RATE * 2))
+        out.write(shortToByteArray(2))
+        out.write(shortToByteArray(16))
+        out.write("data".toByteArray())
+        out.write(intToByteArray(pcm.size))
+        out.write(pcm)
+        out.toByteArray()
     }
 
     private fun intToByteArray(value: Int): ByteArray {
@@ -119,4 +112,5 @@ class AudioRecorder(private val context: Context) {
     }
 
     private var lastRecording: ByteArray? = null
+    private var recordingError: Exception? = null
 }
