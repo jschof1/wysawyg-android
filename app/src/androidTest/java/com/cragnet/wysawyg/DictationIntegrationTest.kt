@@ -3,9 +3,11 @@ package com.cragnet.wysawyg
 import android.app.UiAutomation
 import android.os.SystemClock
 import android.os.ParcelFileDescriptor
+import android.os.Bundle
 import android.content.ClipboardManager
 import android.content.Intent
 import android.text.InputType
+import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.content.ContextCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -17,6 +19,7 @@ import androidx.test.uiautomator.Until
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import org.junit.Assert.*
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -27,7 +30,7 @@ class DictationIntegrationTest {
     private val device = UiDevice.getInstance(instrumentation).also {
         Configurator.getInstance().setUiAutomationFlags(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
     }
-    private val startButton = By.desc("Start dictation")
+    private val startButton = By.pkg("com.cragnet.wysawyg").desc("Start dictation")
 
     private fun shell(command: String): String {
         val automation = instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
@@ -63,6 +66,85 @@ class DictationIntegrationTest {
 
     private fun awaitEditor() {
         assertTrue("Dictation button must appear with the keyboard", device.wait(Until.hasObject(startButton), 8000))
+    }
+
+    /** Opt-in check: inserts an unsent test draft in the installed ChatGPT app, then clears it. */
+    @Test fun chatGptShowsButtonAndAcceptsDirectInsertion() {
+        assumeTrue("Run with -e verifyChatGpt true", InstrumentationRegistry.getArguments().getString("verifyChatGpt") == "true")
+        device.waitForIdle()
+        awaitAccessibility()
+        ActivityScenario.launch(DictationTestActivity::class.java).use { scenario ->
+            scenario.onActivity { ContextCompat.startForegroundService(it, Intent(it, OverlayService::class.java)) }
+        }
+        shell("am start -n com.openai.chatgpt/.MainActivity")
+        val composer = By.pkg("com.openai.chatgpt").clazz("android.widget.EditText")
+        if (device.wait(Until.findObject(composer), 2000) == null &&
+            device.hasObject(By.pkg("com.openai.chatgpt").text("Images")) &&
+            device.hasObject(By.pkg("com.openai.chatgpt").text("Library"))) {
+            device.pressBack() // Close the app's navigation drawer.
+        }
+        requireNotNull(device.wait(Until.findObject(composer), 8000)).click()
+        awaitEditor()
+        val spoken = "WYSAWYG compatibility check."
+        var inserted = false
+        try {
+            instrumentation.runOnMainSync {
+                val service = requireNotNull(TextInjectorService.instance)
+                val target = requireNotNull(service.captureTarget())
+                assertEquals("com.openai.chatgpt", target.node.packageName.toString())
+                assertTrue("Leave an empty ChatGPT composer for this check", target.text.isEmpty())
+                inserted = service.insert(target, spoken) == TextInjectorService.InsertResult.INSERTED
+                assertTrue("ChatGPT must accept direct dictation", inserted)
+            }
+            device.waitForIdle()
+            instrumentation.runOnMainSync {
+                val target = requireNotNull(TextInjectorService.instance?.captureTarget())
+                assertTrue("ChatGPT must contain only the unsent test dictation", target.text == spoken)
+            }
+        } finally {
+            instrumentation.runOnMainSync {
+                val target = TextInjectorService.instance?.captureTarget()
+                if (inserted && target?.node?.packageName?.toString() == "com.openai.chatgpt" && target.text == spoken) {
+                    target.node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, Bundle().apply {
+                        putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "")
+                    })
+                }
+            }
+        }
+        device.waitForIdle()
+        instrumentation.runOnMainSync {
+            assertTrue("The unsent test draft must be cleared", requireNotNull(TextInjectorService.instance?.captureTarget()).text.isEmpty())
+        }
+        device.pressBack()
+        assertTrue("ChatGPT's button must disappear when the keyboard closes", device.wait(Until.gone(startButton), 5000))
+    }
+
+    @Test fun findsVirtualEditorWhenFocusLookupReturnsItsContainer() {
+        device.waitForIdle()
+        awaitAccessibility()
+        ActivityScenario.launch(DictationTestActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                activity.editor.accessibilityDelegate = VirtualEditorAccessibility(activity.editor)
+                activity.editor.setText("Hello world.")
+                ContextCompat.startForegroundService(activity, Intent(activity, OverlayService::class.java))
+            }
+            requireNotNull(device.wait(Until.findObject(By.res("com.cragnet.wysawyg", "dictationTestEditor")), 5000)).click()
+            awaitEditor()
+            scenario.onActivity { it.editor.setSelection(6) }
+            scenario.onActivity {
+                val service = requireNotNull(TextInjectorService.instance)
+                val target = requireNotNull(service.captureTarget())
+                assertEquals(TextInjectorService.InsertResult.INSERTED, service.insert(target, "brave new"))
+            }
+            device.waitForIdle()
+            scenario.onActivity { activity ->
+                assertEquals("Hello brave new world.", activity.editor.text.toString())
+                assertEquals(16, activity.editor.selectionStart)
+                activity.editor.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+                TextInjectorService.instance?.refreshEditor()
+            }
+            assertTrue("Virtual password editors must stay hidden", device.wait(Until.gone(startButton), 5000))
+        }
     }
 
     @Test fun excludesPlaceholderAndCanAppendToFirstDictation() {

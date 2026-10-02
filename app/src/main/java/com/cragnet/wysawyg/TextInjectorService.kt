@@ -52,8 +52,7 @@ class TextInjectorService : AccessibilityService() {
             val application = visibleWindows.firstOrNull {
                 it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isFocused
             }
-            val focused = application?.root?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-            val candidate = focused?.takeIf { it.isEditable && it.isFocused && it.isVisibleToUser && !it.isPassword }
+            val candidate = findFocusedEditor(application?.root)
             if (candidate != editor || keyboardVisible != (keyboard != null)) generation++
             editor = candidate
             keyboardVisible = keyboard != null
@@ -65,6 +64,26 @@ class TextInjectorService : AccessibilityService() {
             OverlayService.updateEditor(false, Rect())
             WysawygLogger.e("Unable to inspect focused editor", e)
         }
+    }
+
+    private fun findFocusedEditor(root: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
+        if (root == null) return null
+        fun usable(node: AccessibilityNodeInfo): Boolean =
+            node.isEditable && node.isFocused && node.isVisibleToUser && !node.isPassword
+        root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.takeIf(::usable)?.let { return it }
+
+        // Some virtual editor providers return the surrounding container for input
+        // focus. Its descendants still expose the actual focused editable node.
+        val pending = ArrayDeque<AccessibilityNodeInfo>()
+        pending.add(root)
+        while (pending.isNotEmpty()) {
+            val node = pending.removeLast()
+            if (usable(node)) return node
+            for (index in node.childCount - 1 downTo 0) {
+                node.getChild(index)?.let { pending.add(it) }
+            }
+        }
+        return null
     }
 
     fun captureTarget(): Target? {

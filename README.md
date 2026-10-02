@@ -96,3 +96,21 @@ appending another dictation, preserving entered text that matches a hint, and
 retaining text typed while transcription is pending. Build and lint passed. The
 device-test service rebind now passes component names without literal shell quotes
 and checks that all existing accessibility settings are retained.
+
+Version 1.1.3 adds support for virtual editors whose input-focus lookup returns a
+surrounding container. If that lookup does not identify a usable editor, WYSAWYG
+searches the focused application window for the visible, focused, editable child.
+An open software keyboard is still required, and password fields stay excluded.
+
+Verified on the A55 with 8 JVM checks, 7 core device checks and an opt-in check in
+the installed ChatGPT app. The virtual-editor regression failed before this fix
+and passed afterward, including cursor insertion and password hiding. In ChatGPT,
+the WYSAWYG button appeared with Gboard, inserted an unsent test sentence directly,
+cleared the test draft, and disappeared when the keyboard closed. Build and lint
+passed. Provider settings, the selected keyboard and other accessibility services
+were retained.
+
+The ChatGPT device check requires an installed app and an empty composer. Opt in
+with the instrumentation argument `-e verifyChatGpt true`; ordinary device runs
+skip this external-app check. It never taps Send, and clears only its own test
+sentence. All other device checks run in the local scratch activity.
