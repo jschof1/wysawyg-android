@@ -83,3 +83,16 @@ The Accessibility service declares generic feedback to receive keyboard/window
 and focus events. Tests rebind only this already-enabled service after Android
 replaces the application process for instrumentation. No cloud provider credentials
 are included in the APK; existing phone settings are preserved on update.
+
+Version 1.1.2 fixes placeholders being included in dictation. Android may report an
+empty editor's hint (for example, "message") as its accessibility text. Both target
+capture and insertion validation now use `isShowingHintText` to distinguish that
+hint from entered content. Actual typed text is preserved, including words identical
+to the placeholder. Changed text or cursor positions still prevent stale insertion.
+
+The regression reproduced "message Hello there" on the A55 before the fix. With
+1.1.2, all 8 JVM tests and 6 on-device tests passed, including empty hinted fields,
+appending another dictation, preserving entered text that matches a hint, and
+retaining text typed while transcription is pending. Build and lint passed. The
+device-test service rebind now passes component names without literal shell quotes
+and checks that all existing accessibility settings are retained.

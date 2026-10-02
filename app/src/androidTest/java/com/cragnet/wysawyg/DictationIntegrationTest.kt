@@ -44,8 +44,17 @@ class DictationIntegrationTest {
             val components = enabled.split(':')
             assertTrue("Enable WYSAWYG Accessibility first", components.any { it.startsWith("com.cragnet.wysawyg/") })
             val remaining = components.filterNot { it.startsWith("com.cragnet.wysawyg/") }.joinToString(":")
-            shell("settings put secure enabled_accessibility_services '$remaining'")
-            shell("settings put secure enabled_accessibility_services '$enabled'")
+            // UiAutomation executes arguments directly; shell quotes become part of
+            // the value and corrupt the component names. Values are validated above.
+            if (remaining.isEmpty()) {
+                shell("settings delete secure enabled_accessibility_services")
+            } else {
+                shell("settings put secure enabled_accessibility_services $remaining")
+            }
+            SystemClock.sleep(500)
+            shell("settings put secure enabled_accessibility_services $enabled")
+            assertEquals("Rebinding must preserve all enabled services", components.toSet(),
+                shell("settings get secure enabled_accessibility_services").split(':').toSet())
         }
         val deadline = SystemClock.uptimeMillis() + 8000
         while (TextInjectorService.instance == null && SystemClock.uptimeMillis() < deadline) SystemClock.sleep(100)
@@ -54,6 +63,86 @@ class DictationIntegrationTest {
 
     private fun awaitEditor() {
         assertTrue("Dictation button must appear with the keyboard", device.wait(Until.hasObject(startButton), 8000))
+    }
+
+    @Test fun excludesPlaceholderAndCanAppendToFirstDictation() {
+        device.waitForIdle()
+        awaitAccessibility()
+        ActivityScenario.launch(DictationTestActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                ContextCompat.startForegroundService(activity, Intent(activity, OverlayService::class.java))
+                activity.editor.hint = "message"
+                activity.editor.setText("")
+            }
+            requireNotNull(device.wait(Until.findObject(By.res("com.cragnet.wysawyg", "dictationTestEditor")), 5000)).click()
+            awaitEditor()
+            scenario.onActivity { activity ->
+                val service = requireNotNull(TextInjectorService.instance)
+                val target = requireNotNull(service.captureTarget())
+                assertTrue("The empty editor exposes its placeholder through accessibility", target.node.isShowingHintText)
+                assertEquals("message", target.node.text.toString())
+                assertEquals(TextInjectorService.InsertResult.INSERTED, service.insert(target, "Hello there"))
+            }
+            device.waitForIdle()
+            scenario.onActivity { activity ->
+                assertEquals("Hello there", activity.editor.text.toString())
+                assertEquals(11, activity.editor.selectionStart)
+                val service = requireNotNull(TextInjectorService.instance)
+                val target = requireNotNull(service.captureTarget())
+                assertFalse(target.node.isShowingHintText)
+                assertEquals(TextInjectorService.InsertResult.INSERTED, service.insert(target, "again"))
+            }
+            device.waitForIdle()
+            scenario.onActivity { assertEquals("Hello there again", it.editor.text.toString()) }
+        }
+    }
+
+    @Test fun preservesTypedTextEvenWhenItMatchesThePlaceholder() {
+        device.waitForIdle()
+        awaitAccessibility()
+        ActivityScenario.launch(DictationTestActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                ContextCompat.startForegroundService(activity, Intent(activity, OverlayService::class.java))
+                activity.editor.hint = "message"
+                activity.editor.setText("message")
+            }
+            requireNotNull(device.wait(Until.findObject(By.res("com.cragnet.wysawyg", "dictationTestEditor")), 5000)).click()
+            awaitEditor()
+            scenario.onActivity { it.editor.setSelection(7) }
+            scenario.onActivity {
+                val service = requireNotNull(TextInjectorService.instance)
+                val target = requireNotNull(service.captureTarget())
+                assertFalse(target.node.isShowingHintText)
+                assertEquals(TextInjectorService.InsertResult.INSERTED, service.insert(target, "received"))
+            }
+            device.waitForIdle()
+            scenario.onActivity { assertEquals("message received", it.editor.text.toString()) }
+        }
+    }
+
+    @Test fun preservesTextTypedIntoEmptyFieldWhileTranscriptionIsPending() {
+        device.waitForIdle()
+        awaitAccessibility()
+        ActivityScenario.launch(DictationTestActivity::class.java).use { scenario ->
+            lateinit var target: TextInjectorService.Target
+            scenario.onActivity { activity ->
+                ContextCompat.startForegroundService(activity, Intent(activity, OverlayService::class.java))
+                activity.editor.hint = "message"
+                activity.editor.setText("")
+            }
+            requireNotNull(device.wait(Until.findObject(By.res("com.cragnet.wysawyg", "dictationTestEditor")), 5000)).click()
+            awaitEditor()
+            scenario.onActivity { target = requireNotNull(TextInjectorService.instance?.captureTarget()) }
+            scenario.onActivity {
+                it.editor.setText("message")
+                it.editor.setSelection(7)
+            }
+            device.waitForIdle()
+            scenario.onActivity {
+                assertEquals(TextInjectorService.InsertResult.TARGET_CHANGED, TextInjectorService.instance?.insert(target, "late dictation"))
+                assertEquals("message", it.editor.text.toString())
+            }
+        }
     }
 
     @Test fun appearsOnlyWithKeyboardAndInsertsAtCursorWithoutClipboard() {

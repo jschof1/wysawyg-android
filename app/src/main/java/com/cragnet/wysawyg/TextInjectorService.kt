@@ -70,14 +70,20 @@ class TextInjectorService : AccessibilityService() {
     fun captureTarget(): Target? {
         refreshEditor()
         val node = editor?.takeIf { keyboardVisible && it.refresh() } ?: return null
-        return Target(node, node.text?.toString().orEmpty(), node.textSelectionStart, node.textSelectionEnd, generation)
+        return Target(node, editorText(node), node.textSelectionStart, node.textSelectionEnd, generation)
+    }
+
+    private fun editorText(node: AccessibilityNodeInfo): String {
+        // Android may expose an empty editor's hint as its text. The flag distinguishes
+        // placeholders from actual content, even when someone types the same words.
+        return if (node.isShowingHintText) "" else node.text?.toString().orEmpty()
     }
 
     fun insert(target: Target, text: String): InsertResult {
         refreshEditor()
         val current = editor ?: return InsertResult.TARGET_CHANGED
         if (!keyboardVisible || target.generation != generation || current != target.node ||
-            !current.refresh() || current.text?.toString().orEmpty() != target.text ||
+            !current.refresh() || editorText(current) != target.text ||
             current.textSelectionStart != target.selectionStart || current.textSelectionEnd != target.selectionEnd) {
             return InsertResult.TARGET_CHANGED
         }
