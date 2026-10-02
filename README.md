@@ -49,7 +49,7 @@ from an authorised computer.
 
 Build verification: `./gradlew assembleDebug lintDebug` (JDK 17 or 21, Android SDK 34).
 Version 1.0 was installed and used successfully on Samsung A55 / Android 15, with
-Groq cloud transcription. Version 1.1 replaces the waveform panel with a small
+Groq cloud transcription. Version 1.1.1 replaces the waveform panel with a small
 microphone button, shown only for an editable, non-password field with a visible
 software keyboard. Tap to record, tap again to finish, hold to cancel, drag to move.
 The button turns red while recording and shows a spinner while transcribing.
@@ -72,3 +72,14 @@ provider settings. JVM tests cover cursor edits and selected ranges. Device test
 verify keyboard visibility, direct insertion, clipboard preservation and changed-field
 and password handling. Run them on an Android device with microphone, overlay and
 accessibility access enabled: `./gradlew connectedDebugAndroidTest`.
+
+
+Samsung A55 / Android 15 verification (2 October 2026): 8 JVM cursor-edit tests
+and 3 on-device integration tests passed using the existing Gboard keyboard.
+Verified show/hide with the software keyboard, direct cursor insertion without
+changing the clipboard, field-switch and password guards, and two microphone
+recordings with valid 16 kHz mono WAV output. Android build and lint passed.
+The Accessibility service declares generic feedback to receive keyboard/window
+and focus events. Tests rebind only this already-enabled service after Android
+replaces the application process for instrumentation. No cloud provider credentials
+are included in the APK; existing phone settings are preserved on update.
