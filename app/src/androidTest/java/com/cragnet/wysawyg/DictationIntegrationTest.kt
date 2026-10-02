@@ -4,6 +4,7 @@ import android.app.UiAutomation
 import android.os.SystemClock
 import android.os.ParcelFileDescriptor
 import android.os.Bundle
+import android.os.Build
 import android.content.ClipboardManager
 import android.content.Intent
 import android.text.InputType
@@ -18,6 +19,8 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.regex.Pattern
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -68,6 +71,134 @@ class DictationIntegrationTest {
         assertTrue("Dictation button must appear with the keyboard", device.wait(Until.hasObject(startButton), 8000))
     }
 
+    private fun awaitDictationTarget(service: TextInjectorService): TextInjectorService.Target {
+        val deadline = SystemClock.uptimeMillis() + 8000
+        while (SystemClock.uptimeMillis() < deadline) {
+            runBlocking { service.captureTargetForDictation() }?.let { return it }
+            SystemClock.sleep(100)
+        }
+        error("The editor and its input connection must be ready")
+    }
+
+    /** Requires a user-prepared empty WhatsApp composer. Never sends a message. */
+    @Test fun whatsAppExcludesUnmarkedPlaceholderAndPreservesTypedMessage() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("verifyWhatsApp") == "true")
+        assumeTrue(Build.VERSION.SDK_INT >= 33)
+        device.waitForIdle()
+        awaitAccessibility()
+        ActivityScenario.launch(DictationTestActivity::class.java).use { scenario ->
+            scenario.onActivity { ContextCompat.startForegroundService(it, Intent(it, OverlayService::class.java)) }
+        }
+        InstrumentationRegistry.getArguments().getString("whatsAppTask")?.let { task ->
+            require(task.matches(Regex("[0-9]+")))
+            shell("am task focus $task") // Return to the prepared conversation after opening the scratch activity.
+        }
+        val composer = By.res(Pattern.compile("com\\.whatsapp(?:\\.w4b)?:id/entry"))
+        requireNotNull(device.wait(Until.findObject(composer), 5000)).click()
+        device.waitForIdle()
+        if (device.hasObject(By.text("Paste"))) device.pressBack()
+        awaitEditor()
+        val service = requireNotNull(TextInjectorService.instance)
+        val target = awaitDictationTarget(service)
+        val pkg = target.node.packageName.toString()
+        assertTrue(pkg in setOf("com.whatsapp", "com.whatsapp.w4b"))
+        assertTrue("Leave an empty WhatsApp composer for this check", target.text.isEmpty())
+        assertNotNull("Confirm the actual input buffer", target.emptyInputEpoch)
+        awaitEditor()
+        val first = "WYSAWYG placeholder check."
+        var lastWritten: String? = null
+        try {
+            assertEquals(TextInjectorService.InsertResult.INSERTED, runBlocking { service.insertForDictation(target, first) })
+            lastWritten = first
+            device.waitForIdle()
+            assertEquals(first, awaitDictationTarget(service).text)
+            instrumentation.runOnMainSync {
+                target.node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, Bundle().apply {
+                    putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "Message")
+                })
+            }
+            lastWritten = "Message"
+            device.waitForIdle()
+            val typed = awaitDictationTarget(service)
+            assertEquals("Actual words identical to the placeholder must be retained", "Message", typed.text)
+            assertEquals(TextInjectorService.InsertResult.INSERTED, runBlocking { service.insertForDictation(typed, "received") })
+            lastWritten = "Message received"
+            device.waitForIdle()
+            assertEquals(lastWritten, awaitDictationTarget(service).text)
+        } finally {
+            val current = runBlocking { service.captureTargetForDictation() }
+            if (lastWritten != null && current?.node?.packageName?.toString() == pkg && current.text == lastWritten) {
+                instrumentation.runOnMainSync {
+                    current.node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, Bundle().apply {
+                        putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "")
+                    })
+                    current.node.performAction(AccessibilityNodeInfo.ACTION_SET_SELECTION, Bundle().apply {
+                        putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, 0)
+                        putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, 0)
+                    })
+                }
+            }
+        }
+        device.waitForIdle()
+        // Tapping an already-focused empty field opens Android's Paste popup,
+        // which takes window focus. Dismiss that menu instead of reopening it.
+        if (device.hasObject(By.text("Paste"))) device.pressBack()
+        awaitEditor()
+        assertTrue("Only the app's test draft is cleared", awaitDictationTarget(service).text.isEmpty())
+    }
+
+    @Test fun excludesUnmarkedHintUsingActualInputBuffer() {
+        assumeTrue(Build.VERSION.SDK_INT >= 33)
+        device.waitForIdle()
+        awaitAccessibility()
+        ActivityScenario.launch(DictationTestActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                activity.editor.hint = "Message"
+                activity.editor.accessibilityDelegate = VirtualEditorAccessibility(activity.editor, unmarkedHint = true)
+                ContextCompat.startForegroundService(activity, Intent(activity, OverlayService::class.java))
+            }
+            requireNotNull(device.wait(Until.findObject(By.res("com.cragnet.wysawyg", "dictationTestEditor")), 5000)).click()
+            awaitEditor()
+            val service = requireNotNull(TextInjectorService.instance)
+            val target = awaitDictationTarget(service)
+            assertEquals("Message", target.node.text.toString())
+            assertFalse(target.node.isShowingHintText)
+            assertNull(target.node.hintText)
+            assertEquals(-1, target.selectionStart)
+            assertEquals("", target.text)
+            assertNotNull(target.emptyInputEpoch)
+            assertEquals(TextInjectorService.InsertResult.INSERTED, runBlocking { service.insertForDictation(target, "Hello there") })
+            scenario.onActivity { assertEquals("Hello there", it.editor.text.toString()) }
+            scenario.onActivity { it.editor.setText("Message") }
+            device.waitForIdle()
+            val typed = requireNotNull(runBlocking { service.captureTargetForDictation() })
+            assertEquals("Message", typed.text)
+            assertEquals(TextInjectorService.InsertResult.INSERTED, runBlocking { service.insertForDictation(typed, "received") })
+            scenario.onActivity { assertEquals("Message received", it.editor.text.toString()) }
+        }
+    }
+
+    @Test fun rechecksBufferWhenTypedWordMatchesUnmarkedHint() {
+        assumeTrue(Build.VERSION.SDK_INT >= 33)
+        device.waitForIdle()
+        awaitAccessibility()
+        ActivityScenario.launch(DictationTestActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                activity.editor.hint = "Message"
+                activity.editor.accessibilityDelegate = VirtualEditorAccessibility(activity.editor, unmarkedHint = true)
+                ContextCompat.startForegroundService(activity, Intent(activity, OverlayService::class.java))
+            }
+            requireNotNull(device.wait(Until.findObject(By.res("com.cragnet.wysawyg", "dictationTestEditor")), 5000)).click()
+            awaitEditor()
+            val service = requireNotNull(TextInjectorService.instance)
+            val target = requireNotNull(runBlocking { service.captureTargetForDictation() })
+            scenario.onActivity { it.editor.setText("Message") }
+            device.waitForIdle()
+            assertEquals(TextInjectorService.InsertResult.TARGET_CHANGED, runBlocking { service.insertForDictation(target, "late dictation") })
+            scenario.onActivity { assertEquals("Message", it.editor.text.toString()) }
+        }
+    }
+
     /** Opt-in check: inserts an unsent test draft in the installed ChatGPT app, then clears it. */
     @Test fun chatGptShowsButtonAndAcceptsDirectInsertion() {
         assumeTrue("Run with -e verifyChatGpt true", InstrumentationRegistry.getArguments().getString("verifyChatGpt") == "true")
@@ -87,23 +218,19 @@ class DictationIntegrationTest {
         awaitEditor()
         val spoken = "WYSAWYG compatibility check."
         var inserted = false
+        val service = requireNotNull(TextInjectorService.instance)
         try {
-            instrumentation.runOnMainSync {
-                val service = requireNotNull(TextInjectorService.instance)
-                val target = requireNotNull(service.captureTarget())
-                assertEquals("com.openai.chatgpt", target.node.packageName.toString())
-                assertTrue("Leave an empty ChatGPT composer for this check", target.text.isEmpty())
-                inserted = service.insert(target, spoken) == TextInjectorService.InsertResult.INSERTED
-                assertTrue("ChatGPT must accept direct dictation", inserted)
-            }
+            val target = requireNotNull(runBlocking { service.captureTargetForDictation() })
+            assertEquals("com.openai.chatgpt", target.node.packageName.toString())
+            assertTrue("Leave an empty ChatGPT composer for this check", target.text.isEmpty())
+            inserted = runBlocking { service.insertForDictation(target, spoken) } == TextInjectorService.InsertResult.INSERTED
+            assertTrue("ChatGPT must accept direct dictation", inserted)
             device.waitForIdle()
-            instrumentation.runOnMainSync {
-                val target = requireNotNull(TextInjectorService.instance?.captureTarget())
-                assertTrue("ChatGPT must contain only the unsent test dictation", target.text == spoken)
-            }
+            assertEquals("ChatGPT must contain only the unsent test dictation", spoken,
+                awaitDictationTarget(service).text)
         } finally {
+            val target = runBlocking { service.captureTargetForDictation() }
             instrumentation.runOnMainSync {
-                val target = TextInjectorService.instance?.captureTarget()
                 if (inserted && target?.node?.packageName?.toString() == "com.openai.chatgpt" && target.text == spoken) {
                     target.node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, Bundle().apply {
                         putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "")
@@ -112,9 +239,7 @@ class DictationIntegrationTest {
             }
         }
         device.waitForIdle()
-        instrumentation.runOnMainSync {
-            assertTrue("The unsent test draft must be cleared", requireNotNull(TextInjectorService.instance?.captureTarget()).text.isEmpty())
-        }
+        assertTrue("The unsent test draft must be cleared", awaitDictationTarget(service).text.isEmpty())
         device.pressBack()
         assertTrue("ChatGPT's button must disappear when the keyboard closes", device.wait(Until.gone(startButton), 5000))
     }

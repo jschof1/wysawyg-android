@@ -114,3 +114,32 @@ The ChatGPT device check requires an installed app and an empty composer. Opt in
 with the instrumentation argument `-e verifyChatGpt true`; ordinary device runs
 skip this external-app check. It never taps Send, and clears only its own test
 sentence. All other device checks run in the local scratch activity.
+
+Version 1.1.4 handles apps such as WhatsApp that expose an empty composer's
+"Message" label as text without setting `isShowingHintText` or providing a hint
+or valid selection positions. On Android 13 and later, floating dictation also
+uses the accessibility input connection to confirm whether the actual editor
+buffer is empty. This observes the existing keyboard's input session; it does
+not select or replace Gboard.
+
+The read-only check requests one character on either side of the selection,
+runs off the UI thread, and is repeated before an insertion based on an empty
+buffer. A changed editor, input session, cursor or entered text prevents stale
+insertion. Typed words identical to a placeholder are retained. Earlier Android
+versions and editors without this API retain the marked-hint fallback; ambiguous
+unmarked text without selection information is rejected rather than inserted.
+The API contract is documented in [Android's accessibility input connection
+reference](https://developer.android.com/reference/android/accessibilityservice/InputMethod.AccessibilityInputConnection#getSurroundingText(int,int,int)).
+
+The opt-in WhatsApp device check requires an empty, user-prepared conversation
+with the keyboard open (`-e verifyWhatsApp true`). If starting the scratch
+activity changes the foreground task, pass its existing task ID with
+`-e whatsAppTask <task-id>` to return to that same conversation. The check enters
+only known unsent test text, verifies that actual "Message" text is retained,
+then clears only its own draft. It never taps Send.
+
+Version 1.1.4 verification on the A55: 8 JVM checks, 9 core device checks and
+the ChatGPT direct-insertion check passed. Build and lint passed. The installed
+WhatsApp self-chat check also passed, verifying insertion without the unmarked
+placeholder, preservation of a deliberately entered "Message", and clearing
+only its own unsent draft. Across the runs, 11 distinct device checks passed.

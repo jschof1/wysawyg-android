@@ -179,16 +179,31 @@ class OverlayService : Service() {
     }
 
     private fun startRecording() {
-        target = TextInjectorService.instance?.captureTarget()
-        if (target == null) return
-        try {
-            audioRecorder.start()
-            state = State.RECORDING
-            renderState()
-            WysawygLogger.i("Overlay recording started")
-        } catch (e: Exception) {
-            WysawygLogger.e("Recording failed", e)
-            Toast.makeText(this, "Could not use the microphone. Check microphone permission.", Toast.LENGTH_LONG).show()
+        state = State.BUSY
+        renderState()
+        scope.launch {
+            try {
+                target = TextInjectorService.instance?.captureTargetForDictation()
+                if (target == null || !editorVisible) {
+                    target = null
+                    state = State.IDLE
+                    renderState()
+                    Toast.makeText(this@OverlayService, "Tap the text box again before dictating.", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                audioRecorder.start()
+                state = State.RECORDING
+                renderState()
+                WysawygLogger.i("Overlay recording started")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                target = null
+                state = State.IDLE
+                renderState()
+                WysawygLogger.e("Recording failed", e)
+                Toast.makeText(this@OverlayService, "Could not use the microphone. Check microphone permission.", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -212,7 +227,7 @@ class OverlayService : Service() {
                 val audio = withContext(Dispatchers.IO) { audioRecorder.stop() }
                 val text = client.transcribe(audio)
                 if (text.isNotBlank()) {
-                    val result = TextInjectorService.instance?.insert(destination, text)
+                    val result = TextInjectorService.instance?.insertForDictation(destination, text)
                     when (result) {
                         TextInjectorService.InsertResult.INSERTED -> WysawygLogger.i("Dictation inserted directly")
                         TextInjectorService.InsertResult.UNSUPPORTED -> Toast.makeText(this@OverlayService,

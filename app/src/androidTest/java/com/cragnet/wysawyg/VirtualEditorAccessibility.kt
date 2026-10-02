@@ -9,7 +9,7 @@ import android.view.accessibility.AccessibilityNodeProvider
 import android.widget.EditText
 
 /** Mimics an editor exposed as a virtual child whose focus lookup returns its host. */
-class VirtualEditorAccessibility(private val editor: EditText) : View.AccessibilityDelegate() {
+class VirtualEditorAccessibility(private val editor: EditText, private val unmarkedHint: Boolean = false) : View.AccessibilityDelegate() {
     private val provider = object : AccessibilityNodeProvider() {
         @Suppress("DEPRECATION")
         override fun createAccessibilityNodeInfo(virtualViewId: Int): AccessibilityNodeInfo? {
@@ -36,10 +36,13 @@ class VirtualEditorAccessibility(private val editor: EditText) : View.Accessibil
                     isFocused = editor.hasFocus()
                     isPassword = editor.transformationMethod is PasswordTransformationMethod
                     val entered = editor.text.toString()
-                    isShowingHintText = entered.isEmpty() && !editor.hint.isNullOrEmpty()
-                    text = if (isShowingHintText) editor.hint else entered
-                    hintText = editor.hint
-                    setTextSelection(editor.selectionStart, editor.selectionEnd)
+                    val showingHint = entered.isEmpty() && !editor.hint.isNullOrEmpty()
+                    isShowingHintText = showingHint && !unmarkedHint
+                    text = if (showingHint) editor.hint else entered
+                    if (!unmarkedHint) {
+                        hintText = editor.hint
+                        setTextSelection(editor.selectionStart, editor.selectionEnd)
+                    }
                     addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_TEXT)
                     addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_SELECTION)
                 }
