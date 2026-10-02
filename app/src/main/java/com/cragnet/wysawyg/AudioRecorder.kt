@@ -1,6 +1,9 @@
 package com.cragnet.wysawyg
 
 import android.content.Context
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -22,9 +25,14 @@ class AudioRecorder(private val context: Context) {
 
     private var audioRecord: AudioRecord? = null
     private var recordingThread: Thread? = null
-    private var isRecording = false
+    @Volatile private var isRecording = false
 
-    fun start() {
+    @Synchronized fun start() {
+        check(recordingThread == null) { "Recording already active" }
+        lastRecording = null
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            throw SecurityException("Allow microphone access in WYSAWYG settings before recording")
+        }
         val minBufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT)
         val bufferSize = minBufferSize.coerceAtLeast(4096)
         WysawygLogger.i("AudioRecorder.start: minBufferSize=$minBufferSize bufferSize=$bufferSize")
@@ -42,8 +50,8 @@ class AudioRecorder(private val context: Context) {
             throw IllegalStateException("AudioRecord not initialized")
         }
 
-        isRecording = true
         audioRecord?.startRecording()
+        isRecording = true
 
         val buffer = ByteArray(bufferSize)
         val outputStream = ByteArrayOutputStream()
@@ -53,12 +61,14 @@ class AudioRecorder(private val context: Context) {
                 val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
                 if (read > 0) {
                     outputStream.write(buffer, 0, read)
+                } else if (read < 0) {
+                    isRecording = false
                 }
             }
 
             val pcmBytes = outputStream.toByteArray()
             outputStream.close()
-            audioRecord?.stop()
+            audioRecord?.let { if (it.recordingState == AudioRecord.RECORDSTATE_RECORDING) it.stop() }
             audioRecord?.release()
             audioRecord = null
 
@@ -70,7 +80,9 @@ class AudioRecorder(private val context: Context) {
 
     fun stop(): ByteArray {
         isRecording = false
-        recordingThread?.join(1000)
+        audioRecord?.let { if (it.recordingState == AudioRecord.RECORDSTATE_RECORDING) it.stop() }
+        recordingThread?.join(5000)
+        check(recordingThread?.isAlive != true) { "Recording did not stop" }
         recordingThread = null
         return lastRecording ?: throw IllegalStateException("No recording captured")
     }

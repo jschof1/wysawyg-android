@@ -32,6 +32,7 @@ class OverlayService : Service() {
     private lateinit var audioRecorder: AudioRecorder
     private lateinit var ollamaClient: OllamaClient
     private var isRecording = false
+    private var isTranscribing = false
 
     private lateinit var cancelButton: ImageButton
     private lateinit var acceptButton: ImageButton
@@ -67,6 +68,7 @@ class OverlayService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        if (isRecording) cancelRecording()
         hideAll()
         instance = null
         super.onDestroy()
@@ -156,6 +158,8 @@ class OverlayService : Service() {
                 WysawygLogger.i("Accept button clicked")
                 if (isRecording) {
                     stopAndTranscribe()
+                } else {
+                    startRecording()
                 }
             }
 
@@ -221,6 +225,7 @@ class OverlayService : Service() {
     }
 
     private fun setIdleState() {
+        isTranscribing = false
         isRecording = false
         waveformView.stopAnimation()
         acceptButton.setImageResource(android.R.drawable.ic_btn_speak_now)
@@ -237,6 +242,7 @@ class OverlayService : Service() {
     }
 
     private fun startRecording() {
+        if (isTranscribing) return
         try {
             audioRecorder.start()
             setRecordingState()
@@ -263,6 +269,7 @@ class OverlayService : Service() {
     private fun stopAndTranscribe() {
         if (!isRecording) return
         isRecording = false
+        isTranscribing = true
         waveformView.stopAnimation()
 
         CoroutineScope(Dispatchers.IO).launch {

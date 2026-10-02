@@ -16,6 +16,7 @@ class WysawygKeyboardService : InputMethodService() {
     private lateinit var audioRecorder: AudioRecorder
     private lateinit var ollamaClient: OllamaClient
     private var isRecording = false
+    private var inputGeneration = 0
     private var recordButton: ImageButton? = null
 
     override fun onCreate() {
@@ -46,6 +47,7 @@ class WysawygKeyboardService : InputMethodService() {
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        inputGeneration++
         WysawygLogger.i("Input view started, inputType=${info?.inputType}")
     }
 
@@ -71,6 +73,9 @@ class WysawygKeyboardService : InputMethodService() {
     }
 
     private fun stopAndTranscribe() {
+        val generation = inputGeneration
+        val connection = currentInputConnection
+        recordButton?.isEnabled = false
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 WysawygLogger.i("Stopping recording, transcribing...")
@@ -79,8 +84,9 @@ class WysawygKeyboardService : InputMethodService() {
                 val text = ollamaClient.transcribe(wavBytes)
                 WysawygLogger.i("Transcription result: $text")
                 withContext(Dispatchers.Main) {
-                    if (text.isNotBlank()) {
-                        currentInputConnection?.commitText(text, 1)
+                    recordButton?.isEnabled = true
+                    if (text.isNotBlank() && generation == inputGeneration) {
+                        connection?.commitText(text, 1)
                         Toast.makeText(this@WysawygKeyboardService, "Inserted: $text", Toast.LENGTH_LONG).show()
                     } else {
                         Toast.makeText(this@WysawygKeyboardService, "No transcription", Toast.LENGTH_SHORT).show()
@@ -89,6 +95,7 @@ class WysawygKeyboardService : InputMethodService() {
             } catch (e: Exception) {
                 WysawygLogger.e("Transcription failed", e)
                 withContext(Dispatchers.Main) {
+                    recordButton?.isEnabled = true
                     Toast.makeText(this@WysawygKeyboardService, "Transcription failed: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }

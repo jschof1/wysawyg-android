@@ -16,3 +16,5 @@ local.properties
 *.jks
 *.keystore
 /wysawyg_settings_*.json
+
+**/build/

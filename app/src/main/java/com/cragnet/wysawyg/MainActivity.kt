@@ -101,6 +101,11 @@ class MainActivity : AppCompatActivity() {
         loadSettings()
     }
 
+    override fun onPause() {
+        saveSettings()
+        super.onPause()
+    }
+
     private fun hasPermissions(): Boolean {
         val audio = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         val overlay = Settings.canDrawOverlays(this)
@@ -109,12 +114,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun requestPermissions() {
         val permissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            permissions.add(Manifest.permission.FOREGROUND_SERVICE)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            permissions.add(Manifest.permission.FOREGROUND_SERVICE_MICROPHONE)
-        }
         ActivityCompat.requestPermissions(this, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
 
         if (!Settings.canDrawOverlays(this)) {

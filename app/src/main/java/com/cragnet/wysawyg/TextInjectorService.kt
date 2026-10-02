@@ -78,7 +78,8 @@ class TextInjectorService : AccessibilityService() {
 
     private fun performInjection(text: String) {
         WysawygLogger.i("Performing injection for text length=${text.length}")
-        var node = focusedEditableNode
+        var node = rootInActiveWindow?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+            ?: focusedEditableNode?.takeIf { it.refresh() }
         if (node == null) {
             val root = rootInActiveWindow
             if (root == null) {
@@ -101,8 +102,13 @@ class TextInjectorService : AccessibilityService() {
             return
         }
 
+        val existing = node.text?.toString().orEmpty()
+        val start = node.textSelectionStart.takeIf { it >= 0 } ?: existing.length
+        val end = node.textSelectionEnd.takeIf { it >= 0 } ?: start
+        val inserted = existing.substring(0, minOf(start, end).coerceAtMost(existing.length)) +
+            text + existing.substring(maxOf(start, end).coerceAtMost(existing.length))
         val args = Bundle().apply {
-            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, inserted)
         }
         val success = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
         WysawygLogger.i("Inject text success=$success")

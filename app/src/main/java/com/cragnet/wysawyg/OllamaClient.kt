@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Base64
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
@@ -32,9 +33,13 @@ class OllamaClient(private val context: Context) {
 
         // Ollama Cloud / public endpoints work best with native /api/chat for multimodal audio.
         // OpenAI-compatible /v1/chat/completions does not reliably pass audio on Ollama Cloud.
-        val base = url.trimEnd('/').removeSuffix("/api/chat").removeSuffix("/v1")
-        val isOllama = url.contains("ollama.com") || url.contains("/api/chat")
-        val endpoint = if (isOllama) "$base/api/chat" else "$base/v1/chat/completions"
+        val cleanUri = uri.buildUpon().clearQuery().fragment(null).build().toString().trimEnd('/')
+        val isOllama = uri.host == "ollama.com" || cleanUri.endsWith("/api/chat") || uri.port == 11434
+        val endpoint = if (isOllama) {
+            cleanUri.removeSuffix("/api/chat") + "/api/chat"
+        } else {
+            cleanUri.removeSuffix("/v1/audio/transcriptions").removeSuffix("/v1/chat/completions").removeSuffix("/v1") + "/v1/chat/completions"
+        }
 
         WysawygLogger.i("OllamaClient transcribe: endpoint=$endpoint model=$effectiveModel audio=${wavBytes.size} bytes apiKeyPresent=${apiKey.isNotBlank()}")
 
@@ -43,6 +48,8 @@ class OllamaClient(private val context: Context) {
 
     private fun transcribeAudio(endpoint: String, model: String, systemPrompt: String, wavBytes: ByteArray, apiKey: String, nativeOllama: Boolean): String {
         WysawygLogger.i("Audio transcription POST $endpoint model=$model")
+
+        if (!nativeOllama) return transcribeCompatible(endpoint, model, wavBytes, apiKey)
 
         val base64Audio = Base64.encodeToString(wavBytes, Base64.NO_WRAP)
 
@@ -96,7 +103,7 @@ class OllamaClient(private val context: Context) {
         }
 
         val parsed = JSONObject(responseBody)
-        WysawygLogger.d("Transcription response body: $responseBody")
+
 
         if (nativeOllama) {
             return parsed.getJSONObject("message").optString("content", "").trim()
@@ -110,4 +117,20 @@ class OllamaClient(private val context: Context) {
         return parsed.optJSONObject("message")?.optString("content", "")?.trim()
             ?: parsed.optString("response", "").trim()
     }
+    private fun transcribeCompatible(endpoint: String, model: String, wavBytes: ByteArray, apiKey: String): String {
+        val transcriptionEndpoint = endpoint.removeSuffix("/chat/completions") + "/audio/transcriptions"
+        val body = MultipartBody.Builder().setType(MultipartBody.FORM)
+            .addFormDataPart("model", model)
+            .addFormDataPart("file", "recording.wav", wavBytes.toRequestBody("audio/wav".toMediaType()))
+            .build()
+        val request = Request.Builder().url(transcriptionEndpoint).post(body).apply {
+            if (apiKey.isNotBlank()) header("Authorization", "Bearer $apiKey")
+        }.build()
+        return client.newCall(request).execute().use { response ->
+            val result = response.body?.string() ?: error("Empty transcription response")
+            check(response.isSuccessful) { "Transcription error ${response.code}" }
+            JSONObject(result).getString("text").trim()
+        }
+    }
+
 }
