@@ -91,3 +91,8 @@ reboot/unlock, package replacement and prolonged OEM battery management were not
 tested in this pass. Force-stop still requires an explicit launch. Disk failures
 retain text in memory and cannot promise survival across process death until a
 save succeeds. Saved items expire after 24 hours.
+
+The phone disconnected after the final instrumentation run. Its current idle
+service state and final preference readback could not be checked after that run.
+On reconnection, check those first and restore any binding disconnected by
+instrumentation before treating the handset as ready for everyday use.
