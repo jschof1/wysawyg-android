@@ -23,10 +23,13 @@ class AudioRecorder(private val context: Context) {
     private var audioRecord: AudioRecord? = null
     private var recordingThread: Thread? = null
     @Volatile private var isRecording = false
+    @Volatile var level = 0f
+        private set
 
     @Synchronized fun start() {
         check(recordingThread == null) { "Recording already active" }
         lastRecording = null
+        level = 0f
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             throw SecurityException("Allow microphone access in WYSAWYG settings before recording")
         }
@@ -54,7 +57,10 @@ class AudioRecorder(private val context: Context) {
                 while (isRecording) {
                     val read = recorder.read(buffer, 0, buffer.size, AudioRecord.READ_NON_BLOCKING)
                     when {
-                        read > 0 -> output.write(buffer, 0, read)
+                        read > 0 -> {
+                            level = PcmLevel.normalized(buffer, read)
+                            output.write(buffer, 0, read)
+                        }
                         read < 0 -> error("Microphone read failed ($read)")
                         else -> Thread.sleep(10)
                     }
@@ -64,6 +70,7 @@ class AudioRecorder(private val context: Context) {
                 recordingError = e
             } finally {
                 isRecording = false
+                level = 0f
                 runCatching { recorder.stop() }
                 recorder.release()
                 audioRecord = null
@@ -74,16 +81,26 @@ class AudioRecorder(private val context: Context) {
 
     @Synchronized fun stop(): ByteArray {
         isRecording = false
-        recordingThread?.join(5000)
-        check(recordingThread?.isAlive != true) { "Recording did not stop" }
-        recordingThread = null
-        recordingError?.let { throw IllegalStateException("Could not capture audio", it) }
-        return lastRecording ?: throw IllegalStateException("No recording captured")
+        try {
+            recordingThread?.join(5000)
+            check(recordingThread?.isAlive != true) { "Recording did not stop" }
+            recordingError?.let { throw IllegalStateException("Could not capture audio", it) }
+            return lastRecording ?: throw IllegalStateException("No recording captured")
+        } finally {
+            level = 0f
+            lastRecording = null
+            recordingError = null
+            if (recordingThread?.isAlive != true) recordingThread = null
+        }
     }
 
     @Synchronized fun close() {
-        if (recordingThread != null) stop()
-        lastRecording = null
+        try {
+            if (recordingThread != null) stop()
+        } finally {
+            level = 0f
+            lastRecording = null
+        }
     }
 
     private fun encodeWav(pcm: ByteArray): ByteArray = ByteArrayOutputStream(pcm.size + 44).use { out ->
