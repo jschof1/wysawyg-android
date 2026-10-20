@@ -154,7 +154,7 @@ class MainActivity : AppCompatActivity() {
             dialog.show()
             return
         }
-        AlertDialog.Builder(this).setTitle("Recovered transcripts • saved for 24h")
+        val dialog = AlertDialog.Builder(this).setTitle("Recovered transcripts")
             .setItems(snapshot.items.mapIndexed { i, item ->
                 "${i + 1}. ${if (item.id in snapshot.unsavedIds) "Not saved: " else ""}${item.text.take(60)}"
             }.toTypedArray()) { _, index ->
@@ -173,7 +173,13 @@ class MainActivity : AppCompatActivity() {
                         if (!store.remove(item.id)) Toast.makeText(this, "Could not save removal. Transcript retained.", Toast.LENGTH_LONG).show()
                         updateRecoveryCount()
                     }.setNeutralButton("Close", null).show()
-            }.setNegativeButton("Close", null).show()
+            }.setNegativeButton("Close", null)
+        if (snapshot.writeFailed && !snapshot.unreadable) dialog.setPositiveButton("Retry saving") { _, _ ->
+            if (!store.retrySave()) Toast.makeText(this, "Could not save recovery text. Copy before closing the app.", Toast.LENGTH_LONG).show()
+            updateRecoveryCount()
+            showRecoveries()
+        }
+        dialog.show()
     }
 
     override fun onPause() {

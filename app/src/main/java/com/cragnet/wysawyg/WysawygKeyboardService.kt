@@ -111,7 +111,10 @@ class WysawygKeyboardService : InputMethodService() {
                 ollamaClient.transcribe(wav) { text -> if (text.isNotBlank()) staged = recoveries.stage(text) }
                 val item = staged
                 if (item != null && eligible && generation == inputGeneration && connection?.commitText(item.text, 1) == true) {
-                    withContext(NonCancellable + Dispatchers.IO) { recoveries.remove(item.id) }
+                    if (!withContext(NonCancellable + Dispatchers.IO) { recoveries.remove(item.id) }) {
+                        Toast.makeText(this@WysawygKeyboardService,
+                            "Inserted, but recovery removal was not saved. Check before inserting again.", Toast.LENGTH_LONG).show()
+                    }
                 } else {
                     Toast.makeText(this@WysawygKeyboardService,
                         if (item == null) "No speech detected" else "Transcript kept in Recovered transcripts.", Toast.LENGTH_LONG).show()

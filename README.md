@@ -162,7 +162,9 @@ tap **Insert here** to capture and validate that current destination. Focus chan
 never trigger insertion. **Copy** changes the clipboard only when tapped and keeps
 the item; **Discard** removes the selected item. Previous/next controls navigate
 multiple items. The card hides on ineligible editors and returns with an eligible
-field and visible keyboard. It never takes keyboard focus. The complete panel is
+field and visible keyboard. **Later** collapses the card without deleting text;
+**Saved text (n)** opens it again beside the microphone. It never takes keyboard
+focus. The complete panel is
 measured and clamped above the keyboard after resizing; in very short windows the
 panel itself scrolls. Main Settings also has a Recovered transcripts access point
 for reading, copying or discarding while floating dictation is paused.
@@ -206,11 +208,16 @@ It restores the clipboard after each scenario and keeps the selected IME unchang
 Run with the existing microphone/overlay/accessibility permissions and Gboard:
 
 ```sh
-./gradlew connectedDebugAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.class=com.cragnet.wysawyg.RecoveryControlsTest
+adb -s SERIAL install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s SERIAL install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb -s SERIAL shell am instrument -w -r \
+  -e class com.cragnet.wysawyg.RecoveryControlsTest \
+  com.cragnet.wysawyg.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Device execution and screenshots for 1.3.0 remain pending with the parent agent.
-The service restart check plus a fresh File-store read does not simulate full OS
-process death or prove OEM background behavior. Earlier device results above refer
-to their stated older releases, not to 1.3.0.
+Version 1.3.0 was checked on the Samsung A55 with Android 15 and Gboard. All six
+new device scenarios passed, as did the existing background and editor checks in
+targeted runs. A saved transcript survived an actual process kill and reappeared
+without opening WYSAWYG settings. See [verification details](docs/verification-1.3.0.md)
+for the combined-suite readiness flake, screenshot coverage and remaining runtime
+boundaries.
