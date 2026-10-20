@@ -65,8 +65,10 @@ class RecoveryStoreTest {
     @Test fun interruptedTemporaryWriteCannotReplaceLastGoodCollection() {
         val file = file()
         val item = RecoveryStore(file).stage("Durable words")
-        File(temporary.root, "recoveries-interrupted.tmp").writeText("partial write")
+        val interrupted = File(temporary.root, "${file.name}.interrupted.tmp")
+        interrupted.writeText("partial write")
         assertEquals(listOf(item), RecoveryStore(file).snapshot().items)
+        assertFalse(interrupted.exists())
         file.writeBytes(file.readBytes().dropLast(2).toByteArray())
         assertTrue(RecoveryStore(file).snapshot().unreadable)
     }
@@ -94,4 +96,30 @@ class RecoveryStoreTest {
         assertEquals(1024 * 1024 + 1, store.snapshot().items.last().text.length)
         assertTrue(big.id in store.snapshot().unsavedIds)
     }
+    @Test fun checksumDetectsChangedTextWithoutOverwritingTheFile() {
+        val file = file()
+        RecoveryStore(file).stage("Original words")
+        val bytes = file.readBytes()
+        bytes[bytes.size - 9] = (bytes[bytes.size - 9].toInt() xor 1).toByte()
+        file.writeBytes(bytes)
+        val store = RecoveryStore(file)
+        assertTrue(store.snapshot().unreadable)
+        assertTrue(bytes.contentEquals(file.readBytes()))
+    }
+
+    @Test fun unsavedWordsDoNotExpireFromMemoryAndBlankResultsAreRejected() {
+        var clock = 100L
+        val blocked = temporary.newFile("blocked")
+        val store = RecoveryStore(File(blocked, "recovery.bin")) { clock }
+        val item = store.stage("Not saved")
+        clock += RecoveryStore.EXPIRY_MS * 2
+        assertEquals(listOf(item), store.snapshot().items)
+        try {
+            store.stage("  ")
+            fail("Blank results must not become recoveries")
+        } catch (_: IllegalArgumentException) {
+            assertEquals(listOf(item), store.snapshot().items)
+        }
+    }
+
 }

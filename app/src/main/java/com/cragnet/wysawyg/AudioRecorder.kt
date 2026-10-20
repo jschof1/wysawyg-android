@@ -23,12 +23,15 @@ class AudioRecorder(private val context: Context) {
     private var audioRecord: AudioRecord? = null
     private var recordingThread: Thread? = null
     @Volatile private var isRecording = false
+    @Volatile private var discardRecording = false
     @Volatile var level = 0f
         private set
+    val recording: Boolean get() = isRecording
 
     @Synchronized fun start() {
         check(recordingThread == null) { "Recording already active" }
         lastRecording = null
+        discardRecording = false
         level = 0f
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             throw SecurityException("Allow microphone access in WYSAWYG settings before recording")
@@ -65,7 +68,7 @@ class AudioRecorder(private val context: Context) {
                         else -> Thread.sleep(10)
                     }
                 }
-                lastRecording = encodeWav(output.toByteArray())
+                if (!discardRecording) lastRecording = encodeWav(output.toByteArray())
             } catch (e: Exception) {
                 recordingError = e
             } finally {
@@ -95,11 +98,16 @@ class AudioRecorder(private val context: Context) {
     }
 
     @Synchronized fun close() {
+        discardRecording = true
+        isRecording = false
         try {
-            if (recordingThread != null) stop()
+            recordingThread?.join(5000)
+            check(recordingThread?.isAlive != true) { "Recording did not stop" }
         } finally {
             level = 0f
             lastRecording = null
+            recordingError = null
+            if (recordingThread?.isAlive != true) recordingThread = null
         }
     }
 

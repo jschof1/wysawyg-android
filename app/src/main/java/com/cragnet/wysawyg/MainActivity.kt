@@ -12,6 +12,8 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
 import android.widget.TextView
+import android.widget.ScrollView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -112,6 +114,7 @@ class MainActivity : AppCompatActivity() {
             saveSettings()
             startActivity(Intent(this, DictationTestActivity::class.java))
         }
+        findViewById<Button>(R.id.recoveredTranscriptsButton).setOnClickListener { showRecoveries() }
         loadSettings()
     }
 
@@ -120,6 +123,57 @@ class MainActivity : AppCompatActivity() {
         if (getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean(PREF_OVERLAY_ENABLED, false) &&
             hasPermissions() && !OverlayService.isRunning()) startOverlayService()
         updateBackgroundStatus()
+        updateRecoveryCount()
+    }
+
+    private fun updateRecoveryCount() {
+        val count = Recoveries.get(this).snapshot().items.size
+        findViewById<Button>(R.id.recoveredTranscriptsButton).text = "Recovered transcripts ($count)"
+    }
+
+    private fun showRecoveries() {
+        val store = Recoveries.get(this)
+        val snapshot = store.snapshot()
+        val policy = "Saved transcripts expire after 24 hours. Up to 5 are kept; new recording pauses when full. To insert, select a non-password text box with your keyboard open, then tap Insert here on the floating card. Pause keeps saved text."
+        if (snapshot.items.isEmpty()) {
+            val dialog = AlertDialog.Builder(this).setTitle("Recovered transcripts").setMessage(
+                when {
+                    snapshot.unreadable -> "Recovery file is unreadable. Discard unreadable data to resume. $policy"
+                    snapshot.writeFailed -> "Recovery storage could not be updated. Retry saving before recording again. $policy"
+                    else -> "No recovered transcripts. $policy"
+                }
+            ).setPositiveButton("Close", null)
+            if (snapshot.unreadable) dialog.setNegativeButton("Discard unreadable data") { _, _ ->
+                if (!store.discardUnreadable()) Toast.makeText(this, "Could not clear recovery storage.", Toast.LENGTH_LONG).show()
+                updateRecoveryCount()
+            }
+            if (snapshot.writeFailed && !snapshot.unreadable) dialog.setNeutralButton("Retry saving") { _, _ ->
+                if (!store.retrySave()) Toast.makeText(this, "Could not update recovery storage.", Toast.LENGTH_LONG).show()
+                updateRecoveryCount()
+            }
+            dialog.show()
+            return
+        }
+        AlertDialog.Builder(this).setTitle("Recovered transcripts • saved for 24h")
+            .setItems(snapshot.items.mapIndexed { i, item ->
+                "${i + 1}. ${if (item.id in snapshot.unsavedIds) "Not saved: " else ""}${item.text.take(60)}"
+            }.toTypedArray()) { _, index ->
+                val item = snapshot.items[index]
+                val text = TextView(this).apply {
+                    text = item.text
+                    textSize = 16f
+                    val padding = (20 * resources.displayMetrics.density).toInt()
+                    setPadding(padding, padding, padding, padding)
+                }
+                val title = if (item.id in snapshot.unsavedIds) "Not saved; memory only" else "Saved for 24 hours"
+                AlertDialog.Builder(this).setTitle(title).setView(ScrollView(this).apply { addView(text) })
+                    .setPositiveButton("Copy") { _, _ ->
+                        if (!Recoveries.copy(this, item)) Toast.makeText(this, "Could not copy the full transcript. Text retained.", Toast.LENGTH_LONG).show()
+                    }.setNegativeButton("Discard") { _, _ ->
+                        if (!store.remove(item.id)) Toast.makeText(this, "Could not save removal. Transcript retained.", Toast.LENGTH_LONG).show()
+                        updateRecoveryCount()
+                    }.setNeutralButton("Close", null).show()
+            }.setNegativeButton("Close", null).show()
     }
 
     override fun onPause() {

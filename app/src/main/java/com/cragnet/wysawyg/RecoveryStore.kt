@@ -39,6 +39,9 @@ class RecoveryStore(private val file: File, private val now: () -> Long = System
     private var expiredCount = 0
 
     init {
+        file.absoluteFile.parentFile?.listFiles { _, name ->
+            name.startsWith("${file.name}.") && name.endsWith(".tmp")
+        }?.forEach { it.delete() }
         if (file.exists()) {
             try {
                 require(file.length() <= MAX_BYTES)
@@ -135,7 +138,7 @@ class RecoveryStore(private val file: File, private val now: () -> Long = System
             require(payload.size + 8 <= MAX_BYTES) { "Recovery storage is full" }
             val directory = requireNotNull(file.absoluteFile.parentFile)
             check(directory.isDirectory || directory.mkdirs())
-            temporary = File.createTempFile("recoveries-", ".tmp", directory)
+            temporary = File.createTempFile("${file.name}.", ".tmp", directory)
             FileOutputStream(temporary).use { stream ->
                 val out = DataOutputStream(stream)
                 out.write(payload)
