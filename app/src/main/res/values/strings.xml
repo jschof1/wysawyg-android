@@ -8,4 +8,11 @@
     <string name="model">Model</string>
     <string name="system_prompt">System Prompt</string>
     <string name="start_dictation">Start dictation</string>
+    <string name="allow_background">Allow background running</string>
+    <string name="background_allowed">Background running allowed</string>
+    <string name="background_paused">Floating dictation is paused. Enable it below to keep it available when you type.</string>
+    <string name="background_permissions_needed">Allow microphone access and display over other apps to resume floating dictation.</string>
+    <string name="background_accessibility_needed">Enable WYSAWYG Accessibility so the button can appear when you type.</string>
+    <string name="background_battery_limited">Floating dictation is enabled. Allow background running to reduce battery restrictions.</string>
+    <string name="background_ready">Floating dictation is enabled and resumes automatically after restarts. You can close this screen.</string>
 </resources>

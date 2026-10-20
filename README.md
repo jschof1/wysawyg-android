@@ -65,7 +65,8 @@ This is a platform compatibility limit; the app reports failed insertion.
 Closing the keyboard hides the button and cancels an active recording. If the field,
 text or cursor changes while transcription runs, the result is not inserted into
 another location. Password fields do not show the button. The notification allows
-pausing the service; after an app/process restart, open settings to resume it.
+pausing the service. Enabled floating dictation resumes automatically after process
+restarts, phone startup, and app updates. Pause remains in effect until you enable it again.
 
 Try dictation opens a local scratch screen without sending messages or changing
 provider settings. JVM tests cover cursor edits and selected ranges. Device tests

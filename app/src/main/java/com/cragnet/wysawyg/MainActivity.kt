@@ -6,10 +6,12 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -19,6 +21,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val PERMISSION_REQUEST_CODE = 1001
         private const val OVERLAY_REQUEST_CODE = 1002
+        private const val NOTIFICATION_REQUEST_CODE = 1003
         const val PREF_OVERLAY_ENABLED = "overlay_enabled"
         const val PREFS_NAME = "wysawyg"
         const val PREF_ALARMA_URL = "alarma_url"
@@ -58,8 +61,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.stopOverlayButton).setOnClickListener {
-            getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putBoolean(PREF_OVERLAY_ENABLED, false).apply()
-            stopService(Intent(this, OverlayService::class.java))
+            OverlayService.pause(this)
+            updateBackgroundStatus()
+        }
+
+        findViewById<Button>(R.id.allowBackgroundButton).setOnClickListener {
+            startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                Uri.parse("package:$packageName")))
         }
 
         findViewById<Button>(R.id.enableAccessibilityButton).setOnClickListener {
@@ -111,6 +119,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         if (getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean(PREF_OVERLAY_ENABLED, false) &&
             hasPermissions() && !OverlayService.isRunning()) startOverlayService()
+        updateBackgroundStatus()
     }
 
     override fun onPause() {
@@ -119,9 +128,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun hasPermissions(): Boolean {
-        val audio = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        val overlay = Settings.canDrawOverlays(this)
-        return audio && overlay
+        return OverlayService.hasPermissions(this)
+    }
+
+    private fun updateBackgroundStatus() {
+        val unrestricted = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
+        findViewById<TextView>(R.id.backgroundStatus).text = when {
+            !OverlayService.isEnabled(this) -> getString(R.string.background_paused)
+            !hasPermissions() -> getString(R.string.background_permissions_needed)
+            TextInjectorService.instance == null -> getString(R.string.background_accessibility_needed)
+            !unrestricted -> getString(R.string.background_battery_limited)
+            else -> getString(R.string.background_ready)
+        }
+        findViewById<Button>(R.id.allowBackgroundButton).apply {
+            isEnabled = !unrestricted
+            setText(if (unrestricted) R.string.background_allowed else R.string.allow_background)
+        }
     }
 
     private fun requestPermissions() {
@@ -153,23 +175,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startOverlayService() {
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putBoolean(PREF_OVERLAY_ENABLED, true).apply()
         if (TextInjectorService.instance == null) {
             Toast.makeText(this, "Enable WYSAWYG Accessibility to show dictation when you type", Toast.LENGTH_LONG).show()
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             return
         }
-        try {
-            val intent = Intent(this, OverlayService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                ContextCompat.startForegroundService(this, intent)
-            } else {
-                startService(intent)
-            }
+        if (OverlayService.ensureRunning(this)) {
             WysawygLogger.i("Overlay service start requested")
-        } catch (e: Exception) {
-            WysawygLogger.e("Failed to start overlay service", e)
-            Toast.makeText(this, "Failed to start overlay: ${e.message}", Toast.LENGTH_LONG).show()
+            if (Build.VERSION.SDK_INT >= 33 &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), NOTIFICATION_REQUEST_CODE)
+            }
+        } else {
+            Toast.makeText(this, "Could not resume dictation. Check microphone and overlay permissions.", Toast.LENGTH_LONG).show()
         }
+        updateBackgroundStatus()
     }
 
     private fun shareLog() {

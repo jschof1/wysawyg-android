@@ -3,6 +3,7 @@ package com.cragnet.wysawyg
 import android.app.UiAutomation
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
@@ -37,7 +38,7 @@ class BackgroundLifecycleTest {
         return condition()
     }
 
-    private fun reconnectAccessibility() {
+    private fun reconnectAccessibility(whileDisconnected: () -> Unit = {}) {
         val enabled = shell("settings get secure enabled_accessibility_services")
         require(enabled.matches(Regex("[A-Za-z0-9_.:/$]+")))
         val components = enabled.split(':')
@@ -48,6 +49,7 @@ class BackgroundLifecycleTest {
             if (remaining.isEmpty()) shell("settings delete secure enabled_accessibility_services")
             else shell("settings put secure enabled_accessibility_services $remaining")
             assertTrue("Accessibility must disconnect", await { TextInjectorService.instance == null })
+            whileDisconnected()
             SystemClock.sleep(500)
         } finally {
             shell("settings put secure enabled_accessibility_services $enabled")
@@ -63,9 +65,10 @@ class BackgroundLifecycleTest {
         ActivityScenario.launch(DictationTestActivity::class.java).use { scenario ->
             try {
                 prefs.edit().putBoolean(MainActivity.PREF_OVERLAY_ENABLED, enabled).commit()
-                scenario.onActivity { it.stopService(Intent(it, OverlayService::class.java)) }
-                assertTrue("Overlay must stop before reconnect", await { !OverlayService.isRunning() })
-                reconnectAccessibility()
+                reconnectAccessibility {
+                    scenario.onActivity { it.stopService(Intent(it, OverlayService::class.java)) }
+                    assertTrue("Overlay must stop before reconnect", await { !OverlayService.isRunning() })
+                }
                 if (enabled) {
                     assertTrue("Enabled dictation must recover without opening WYSAWYG settings",
                         await { OverlayService.isRunning() })
@@ -90,4 +93,39 @@ class BackgroundLifecycleTest {
     @Test fun enabledDictationRecoversAfterAccessibilityReconnect() = verifyReconnect(true)
 
     @Test fun pausedDictationStaysPausedAfterAccessibilityReconnect() = verifyReconnect(false)
+
+    private fun microphoneServiceActive(): Boolean {
+        val record = shell("dumpsys activity services ${context.packageName}")
+        val types = requireNotNull(Regex("types=0x([0-9a-fA-F]+)").find(record)).groupValues[1].toLong(16)
+        return types and ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE.toLong() != 0L
+    }
+
+    @Test fun recoveredServiceUsesMicrophoneOnlyAfterTap() {
+        val prefs = context.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
+        val previous = prefs.getBoolean(MainActivity.PREF_OVERLAY_ENABLED, false)
+        ActivityScenario.launch(DictationTestActivity::class.java).use { scenario ->
+            try {
+                prefs.edit().putBoolean(MainActivity.PREF_OVERLAY_ENABLED, true).commit()
+                reconnectAccessibility()
+                assertTrue(await { OverlayService.isRunning() })
+                assertFalse("Standby must not claim microphone access", microphoneServiceActive())
+                requireNotNull(device.wait(Until.findObject(By.res(context.packageName, "dictationTestEditor")), 5000)).click()
+                val button = requireNotNull(device.wait(Until.findObject(By.pkg(context.packageName).desc("Start dictation")), 8000))
+                SystemClock.sleep(500)
+                button.click()
+                val finish = By.pkg(context.packageName).desc("Finish dictation. Hold to cancel")
+                assertTrue("A tap must start a real recording after background recovery", device.wait(Until.hasObject(finish), 5000))
+                assertTrue("Recording must declare microphone access", microphoneServiceActive())
+                requireNotNull(device.findObject(finish)).longClick()
+                assertTrue(device.wait(Until.hasObject(By.pkg(context.packageName).desc("Start dictation")), 5000))
+                assertFalse("Cancel must release microphone foreground access", microphoneServiceActive())
+            } finally {
+                scenario.onActivity { it.stopService(Intent(it, OverlayService::class.java)) }
+                prefs.edit().putBoolean(MainActivity.PREF_OVERLAY_ENABLED, previous).commit()
+                scenario.onActivity {
+                    if (previous) ContextCompat.startForegroundService(it, Intent(it, OverlayService::class.java))
+                }
+            }
+        }
+    }
 }
