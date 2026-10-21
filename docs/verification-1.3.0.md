@@ -114,5 +114,16 @@ microphone foreground state idle.
 
 Final readback confirmed unchanged preferences, Gboard and accessibility services.
 Microphone and notification permissions, overlay access and the battery exemption
-remained enabled. No new instrumentation run was needed. The phone locked during
-the follow-up, so recording controls were not visually rechecked in this pass.
+remained enabled. No new instrumentation run was needed.
+
+After the phone was unlocked, the bubble appeared beside Samsung Settings search
+with Gboard open. A recording screenshot showed the timer at `00:02`, the level
+widget and separate Stop and Cancel buttons. All controls fit above Gboard.
+Cancel returned to the idle bubble and removed microphone foreground state.
+
+A second short ambient recording checked Stop. Processing completed, punctuation
+appeared in the test field, and the service returned to idle with microphone
+foreground state removed. Android's microphone operation had a completed duration.
+The test input was cleared, recovery storage contained zero items, and preferences,
+Gboard and accessibility services remained unchanged. Speech accuracy with a
+deliberately spoken test phrase remains unverified.
