@@ -48,6 +48,7 @@ class TextInjectorService : AccessibilityService() {
         if (Build.VERSION.SDK_INT >= 33) {
             serviceInfo = serviceInfo.apply { flags = flags or AccessibilityServiceInfo.FLAG_INPUT_METHOD_EDITOR }
         }
+        OverlayService.ensureRunning(this)
         refreshEditor()
     }
 
@@ -68,6 +69,7 @@ class TextInjectorService : AccessibilityService() {
 
     fun refreshEditor() {
         try {
+            OverlayService.ensureRunning(this)
             val visibleWindows = windows
             val keyboard = visibleWindows.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
             val keyboardBounds = Rect().also { keyboard?.getBoundsInScreen(it) }

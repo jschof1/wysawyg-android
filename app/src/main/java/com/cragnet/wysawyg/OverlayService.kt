@@ -6,11 +6,15 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.os.IBinder
+import android.os.Build
+import android.provider.Settings
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
@@ -22,6 +26,8 @@ import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +57,31 @@ class OverlayService : Service() {
         private const val STOP = "com.cragnet.wysawyg.STOP_DICTATION"
         private var instance: OverlayService? = null
         fun isRunning(): Boolean = instance != null
+        fun isEnabled(context: Context): Boolean = context
+            .getSharedPreferences(MainActivity.PREFS_NAME, MODE_PRIVATE)
+            .getBoolean(MainActivity.PREF_OVERLAY_ENABLED, false)
+
+        fun hasPermissions(context: Context): Boolean = Settings.canDrawOverlays(context) &&
+            ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
+        fun ensureRunning(context: Context): Boolean {
+            if (!isEnabled(context) || !hasPermissions(context)) return false
+            if (isRunning()) return true
+            return try {
+                ContextCompat.startForegroundService(context, Intent(context, OverlayService::class.java))
+                true
+            } catch (e: Exception) {
+                WysawygLogger.e("Unable to resume floating dictation", e)
+                false
+            }
+        }
+
+        fun pause(context: Context) {
+            context.getSharedPreferences(MainActivity.PREFS_NAME, MODE_PRIVATE).edit()
+                .putBoolean(MainActivity.PREF_OVERLAY_ENABLED, false).apply()
+            context.stopService(Intent(context, OverlayService::class.java))
+        }
+
         fun updateEditor(visible: Boolean, keyboard: Rect) {
             instance?.onEditorChanged(visible, keyboard)
         }
@@ -76,23 +107,35 @@ class OverlayService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == STOP) {
-            getSharedPreferences(MainActivity.PREFS_NAME, MODE_PRIVATE).edit()
-                .putBoolean(MainActivity.PREF_OVERLAY_ENABLED, false).apply()
+            pause(this)
             stopSelf()
             return START_NOT_STICKY
         }
+        if (!isEnabled(this) || !hasPermissions(this)) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        showForeground(state == State.RECORDING)
+        TextInjectorService.instance?.refreshEditor()
+        WysawygLogger.i("Floating dictation ready${if (intent == null) " after process restart" else ""}")
+        return START_STICKY
+    }
+
+    private fun showForeground(recording: Boolean) {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val stop = PendingIntent.getService(this, 1, Intent(this, OverlayService::class.java).setAction(STOP), PendingIntent.FLAG_IMMUTABLE)
-        startForeground(1, NotificationCompat.Builder(this, CHANNEL_ID)
+        val type = when {
+            Build.VERSION.SDK_INT >= 34 -> ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or
+                (if (recording) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0)
+            Build.VERSION.SDK_INT >= 30 -> ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            else -> 0
+        }
+        ServiceCompat.startForeground(this, 1, NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("WYSAWYG dictation")
-            .setContentText("The microphone appears when your keyboard is open")
+            .setContentText(if (recording) "Recording. Tap the microphone to finish." else "Ready when your keyboard is open")
             .setSmallIcon(R.drawable.ic_dictation_mic)
             .setContentIntent(open).setOngoing(true)
-            .addAction(0, "Pause", stop).build())
-        getSharedPreferences(MainActivity.PREFS_NAME, MODE_PRIVATE).edit()
-            .putBoolean(MainActivity.PREF_OVERLAY_ENABLED, true).apply()
-        TextInjectorService.instance?.refreshEditor()
-        return START_NOT_STICKY
+            .addAction(0, "Pause", stop).build(), type)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -191,6 +234,7 @@ class OverlayService : Service() {
                     Toast.makeText(this@OverlayService, "Tap the text box again before dictating.", Toast.LENGTH_SHORT).show()
                     return@launch
                 }
+                showForeground(recording = true)
                 audioRecorder.start()
                 state = State.RECORDING
                 renderState()
@@ -201,6 +245,7 @@ class OverlayService : Service() {
                 target = null
                 state = State.IDLE
                 renderState()
+                showForeground(recording = false)
                 WysawygLogger.e("Recording failed", e)
                 Toast.makeText(this@OverlayService, "Could not use the microphone. Check microphone permission.", Toast.LENGTH_LONG).show()
             }
@@ -213,6 +258,7 @@ class OverlayService : Service() {
         renderState()
         scope.launch {
             withContext(Dispatchers.IO) { runCatching { audioRecorder.stop() } }
+            showForeground(recording = false)
             state = State.IDLE
             renderState()
         }
@@ -225,6 +271,7 @@ class OverlayService : Service() {
         scope.launch {
             try {
                 val audio = withContext(Dispatchers.IO) { audioRecorder.stop() }
+                showForeground(recording = false)
                 val text = client.transcribe(audio)
                 if (text.isNotBlank()) {
                     val result = TextInjectorService.instance?.insertForDictation(destination, text)
@@ -244,6 +291,7 @@ class OverlayService : Service() {
                 WysawygLogger.e("Transcription failed", e)
                 Toast.makeText(this@OverlayService, "Transcription failed: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
+                if (instance === this@OverlayService) showForeground(recording = false)
                 target = null
                 state = State.IDLE
                 renderState()
@@ -290,10 +338,10 @@ class OverlayService : Service() {
     }
 
     override fun onDestroy() {
+        instance = null
         runCatching { audioRecorder.close() }
         scope.cancel()
         hideBubble()
-        instance = null
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
