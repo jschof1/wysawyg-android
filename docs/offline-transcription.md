@@ -123,12 +123,12 @@ It does not change real preferences, recoveries or the clipboard. Supply a known
 adb -s SERIAL push jfk.wav /data/local/tmp/wysawyg-jfk.wav
 adb -s SERIAL shell run-as com.cragnet.wysawyg mkdir -p files
 adb -s SERIAL shell run-as com.cragnet.wysawyg cp /data/local/tmp/wysawyg-jfk.wav files/phonon-fixture.wav
-adb -s SERIAL shell am instrument -w -r \
+adb -s SERIAL shell "am instrument --user 0 -w -r \
   -e class com.cragnet.wysawyg.PhononIntegrationTest \
   -e phononFixture /data/user/0/com.cragnet.wysawyg/files/phonon-fixture.wav \
   -e phononExpected 'And so my fellow Americans ask not what your country can do for you ask what you can do for your country' \
   -e phononCrashWorker true \
-  com.cragnet.wysawyg.test/androidx.test.runner.AndroidJUnitRunner
+  com.cragnet.wysawyg.test/androidx.test.runner.AndroidJUnitRunner"
 ```
 
 No fixture argument means the speech tests skip, not pass. The crash test is

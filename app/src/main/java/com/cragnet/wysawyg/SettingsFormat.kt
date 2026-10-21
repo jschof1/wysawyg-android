@@ -8,7 +8,7 @@ object SettingsFormat {
     fun export(values: Map<String, *>): Map<String, Any> = buildMap {
         put(VERSION_KEY, VERSION)
         put(TranscriptionMode.KEY, TranscriptionMode.fromStored(values[TranscriptionMode.KEY] as? String).name)
-        credentialKeys.forEach { put(it, values[it] as? String ?: "") }
+        credentialKeys.forEach { key -> (values[key] as? String)?.let { put(key, it) } }
     }
     fun import(values: Map<String, *>): Map<String, String> = buildMap {
         val version = if (values[VERSION_KEY] == VERSION) VERSION else 1
