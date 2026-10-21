@@ -13,6 +13,8 @@ import android.widget.EditText
 import android.widget.Toast
 import android.widget.TextView
 import android.widget.ScrollView
+import android.widget.RadioButton
+import android.view.View
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -37,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var modelInput: EditText
     private lateinit var promptInput: EditText
 
+    private var transcriptionMode = TranscriptionMode.OFFLINE
     private lateinit var settingsExporter: SettingsExporter
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,13 +47,37 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         WysawygLogger.init(this)
-        settingsExporter = SettingsExporter(this)
+        settingsExporter = SettingsExporter(this) { loadSettings() }
 
         alarmaUrlInput = findViewById(R.id.alarmaUrl)
         apiKeyInput = findViewById(R.id.apiKey)
         modelInput = findViewById(R.id.modelName)
         promptInput = findViewById(R.id.systemPrompt)
 
+        findViewById<RadioButton>(R.id.onDeviceMode).setOnClickListener {
+            transcriptionMode = TranscriptionMode.OFFLINE
+            renderMode()
+            saveSettings()
+        }
+        findViewById<RadioButton>(R.id.cloudMode).setOnClickListener {
+            transcriptionMode = TranscriptionMode.CLOUD
+            renderMode()
+            saveSettings()
+        }
+        findViewById<Button>(R.id.advancedToggle).setOnClickListener {
+            val panel = findViewById<View>(R.id.advancedSettings)
+            val expanded = panel.visibility != View.VISIBLE
+            panel.visibility = if (expanded) View.VISIBLE else View.GONE
+            findViewById<Button>(R.id.advancedToggle).setText(if (expanded) R.string.advanced_hide else R.string.advanced_show)
+        }
+        findViewById<Button>(R.id.speechNotices).setOnClickListener {
+            val notices = listOf("PHONON-NOTICE.txt", "PHONON-UPSTREAM-NOTICE.txt", "phonon2-MIT.txt", "CC-BY-4.0.txt")
+                .joinToString("\n\n") { name -> assets.open("notices/$name").bufferedReader().use { it.readText() } }
+            AlertDialog.Builder(this).setTitle("Speech model licences")
+                .setView(ScrollView(this).apply { addView(TextView(this@MainActivity).apply {
+                    text = notices; setPadding(24, 16, 24, 16)
+                }) }).setPositiveButton("Close", null).show()
+        }
         WysawygLogger.i("MainActivity started")
 
         findViewById<Button>(R.id.startOverlayButton).setOnClickListener {
@@ -263,24 +290,39 @@ class MainActivity : AppCompatActivity() {
         startActivity(Intent.createChooser(shareIntent, "Share log"))
     }
 
+    private var loadedCredentials = emptyMap<String, String>()
+
     private fun saveSettings() {
+        val fields = mapOf(PREF_ALARMA_URL to alarmaUrlInput.text.toString(), PREF_API_KEY to apiKeyInput.text.toString(),
+            PREF_MODEL to modelInput.text.toString(), PREF_SYSTEM_PROMPT to promptInput.text.toString())
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().apply {
-            putString(PREF_ALARMA_URL, alarmaUrlInput.text.toString().ifBlank { "https://ollama.com/api/chat" })
-            putString(PREF_API_KEY, apiKeyInput.text.toString())
-            putString(PREF_MODEL, modelInput.text.toString().ifBlank { defaultModel(alarmaUrlInput.text.toString()) })
-            putString(PREF_SYSTEM_PROMPT, promptInput.text.toString())
+            putString(TranscriptionMode.KEY, transcriptionMode.name)
+            // A mode change or an ordinary visit never rewrites stored cloud credentials.
+            fields.forEach { (key, value) -> if (value != loadedCredentials[key]) putString(key, value) }
             apply()
         }
+        loadedCredentials = fields
         WysawygLogger.i("Settings saved")
     }
 
     private fun loadSettings() {
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        transcriptionMode = TranscriptionMode.fromStored(prefs.getString(TranscriptionMode.KEY, null))
+        renderMode()
         val url = prefs.getString(PREF_ALARMA_URL, "https://ollama.com/api/chat") ?: "https://ollama.com/api/chat"
         alarmaUrlInput.setText(url)
         apiKeyInput.setText(prefs.getString(PREF_API_KEY, ""))
         modelInput.setText(prefs.getString(PREF_MODEL, defaultModel(url)))
         promptInput.setText(prefs.getString(PREF_SYSTEM_PROMPT, "Transcribe the audio exactly. Output only the spoken words, no commentary."))
+        loadedCredentials = mapOf(PREF_ALARMA_URL to alarmaUrlInput.text.toString(), PREF_API_KEY to apiKeyInput.text.toString(),
+            PREF_MODEL to modelInput.text.toString(), PREF_SYSTEM_PROMPT to promptInput.text.toString())
+    }
+
+    private fun renderMode() {
+        findViewById<RadioButton>(R.id.onDeviceMode).isChecked = transcriptionMode == TranscriptionMode.OFFLINE
+        findViewById<RadioButton>(R.id.cloudMode).isChecked = transcriptionMode == TranscriptionMode.CLOUD
+        findViewById<TextView>(R.id.transcriptionStatus).setText(
+            if (transcriptionMode == TranscriptionMode.OFFLINE) R.string.works_offline else R.string.cloud_selected)
     }
 
     private fun defaultModel(url: String): String {

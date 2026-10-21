@@ -38,7 +38,7 @@ class RecoveryControlsTest {
         Configurator.getInstance().setUiAutomationFlags(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
     }
     private val prefs = context.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
-    private val keys = listOf(MainActivity.PREF_OVERLAY_ENABLED, MainActivity.PREF_ALARMA_URL,
+    private val keys = listOf(TranscriptionMode.KEY, MainActivity.PREF_OVERLAY_ENABLED, MainActivity.PREF_ALARMA_URL,
         MainActivity.PREF_API_KEY, MainActivity.PREF_MODEL)
     private var oldPrefs = emptyMap<String, Any?>()
     private var originalClipboard: ClipData? = null
@@ -94,6 +94,7 @@ class RecoveryControlsTest {
         oldPrefs = keys.associateWith { prefs.all[it] }
         server = LocalTranscriptionServer(words)
         prefs.edit().putBoolean(MainActivity.PREF_OVERLAY_ENABLED, true)
+            .putString(TranscriptionMode.KEY, TranscriptionMode.CLOUD.name)
             .putString(MainActivity.PREF_ALARMA_URL, "http://127.0.0.1:${server.port}/v1")
             .putString(MainActivity.PREF_API_KEY, "").putString(MainActivity.PREF_MODEL, "local-test").commit()
         setup = true

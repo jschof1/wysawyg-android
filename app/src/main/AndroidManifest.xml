@@ -38,6 +38,8 @@
                 android:value="User-enabled floating dictation button available with the keyboard. Microphone is used only after a tap." />
         </service>
 
+        <service android:name=".PhononService" android:exported="false" android:process=":phonon" />
+
         <receiver android:name=".DictationStartupReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

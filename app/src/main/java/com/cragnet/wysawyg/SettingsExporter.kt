@@ -12,7 +12,7 @@ import java.io.InputStreamReader
 import java.io.OutputStream
 import java.io.OutputStreamWriter
 
-class SettingsExporter(private val activity: AppCompatActivity) {
+class SettingsExporter(private val activity: AppCompatActivity, private val onImported: () -> Unit) {
 
     private val exportLauncher = activity.registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -38,11 +38,7 @@ class SettingsExporter(private val activity: AppCompatActivity) {
     private fun exportToUri(uri: Uri) {
         try {
             val prefs = activity.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
-            val json = JSONObject()
-            json.put(MainActivity.PREF_ALARMA_URL, prefs.getString(MainActivity.PREF_ALARMA_URL, "") ?: "")
-            json.put(MainActivity.PREF_API_KEY, prefs.getString(MainActivity.PREF_API_KEY, "") ?: "")
-            json.put(MainActivity.PREF_MODEL, prefs.getString(MainActivity.PREF_MODEL, "") ?: "")
-            json.put(MainActivity.PREF_SYSTEM_PROMPT, prefs.getString(MainActivity.PREF_SYSTEM_PROMPT, "") ?: "")
+            val json = JSONObject(SettingsFormat.export(prefs.all))
 
             val out: OutputStream? = activity.contentResolver.openOutputStream(uri)
             if (out != null) {
@@ -70,17 +66,16 @@ class SettingsExporter(private val activity: AppCompatActivity) {
             }
 
             val json: JSONObject = JSONTokener(jsonString).nextValue() as JSONObject
+            val values = json.keys().asSequence().associateWith { json.get(it) }
             activity.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE).edit().apply {
-                putString(MainActivity.PREF_ALARMA_URL, json.optString(MainActivity.PREF_ALARMA_URL, "http://localhost:11434/api/chat"))
-                putString(MainActivity.PREF_API_KEY, json.optString(MainActivity.PREF_API_KEY, ""))
-                putString(MainActivity.PREF_MODEL, json.optString(MainActivity.PREF_MODEL, "gemma4:12b"))
-                putString(MainActivity.PREF_SYSTEM_PROMPT, json.optString(MainActivity.PREF_SYSTEM_PROMPT, "Transcribe the audio exactly. Output only the spoken words, no commentary."))
-                apply()
+                SettingsFormat.import(values).forEach { (key, value) -> putString(key, value) }
+                check(commit()) { "Could not save imported settings" }
             }
+            // Reload visible fields BEFORE onPause can save stale values over the import.
+            onImported()
 
             WysawygLogger.i("Settings imported from $uri")
-            Toast.makeText(activity, "Settings imported — restart app to apply", Toast.LENGTH_LONG).show()
-            activity.recreate()
+            Toast.makeText(activity, "Settings imported", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
             WysawygLogger.e("Failed to import settings", e)
             Toast.makeText(activity, "Import failed: ${e.message}", Toast.LENGTH_LONG).show()

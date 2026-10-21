@@ -15,11 +15,17 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 class WysawygKeyboardService : InputMethodService() {
     private lateinit var audioRecorder: AudioRecorder
-    private lateinit var ollamaClient: OllamaClient
+    private lateinit var client: TranscriptionClient
+    private var capture: CaptureAdmission.Reservation? = null
+    private var limitMonitor: Job? = null
     private lateinit var recoveries: RecoveryStore
     private var isRecording = false
     private var busy = false
@@ -34,7 +40,7 @@ class WysawygKeyboardService : InputMethodService() {
         super.onCreate()
         WysawygLogger.init(this)
         audioRecorder = AudioRecorder(this)
-        ollamaClient = OllamaClient(this)
+        client = Transcriptions.get(this)
         recoveries = Recoveries.get(this)
     }
 
@@ -51,6 +57,7 @@ class WysawygKeyboardService : InputMethodService() {
             setOnClickListener { toggleRecording() }
         }
         layout.addView(recordButton)
+        layout.addView(android.widget.TextView(this).apply { text = "Recordings finish after 5 minutes" })
         return layout
     }
 
@@ -86,14 +93,32 @@ class WysawygKeyboardService : InputMethodService() {
             render()
             stopAndTranscribe()
         } else if (recoveries.snapshot().canCapture) {
+            capture = client.admission.acquire() ?: run {
+                Toast.makeText(this, "Finish the current dictation or resolve recovered transcripts first.", Toast.LENGTH_LONG).show()
+                return
+            }
             try {
                 audioRecorder.start()
                 recordingGeneration = inputGeneration
                 recordingConnection = currentInputConnection
                 isRecording = true
+                Toast.makeText(this, "Recording. Finishes automatically after 5 minutes.", Toast.LENGTH_SHORT).show()
+                limitMonitor = scope.launch {
+                    while (isRecording) {
+                        delay(100)
+                        if (!audioRecorder.recording && isRecording) {
+                            if (audioRecorder.limitReached) {
+                                Toast.makeText(this@WysawygKeyboardService, "5-minute limit reached. Transcribing.", Toast.LENGTH_LONG).show()
+                                toggleRecording()
+                            } else cancelCapture()
+                        }
+                    }
+                }
                 render()
             } catch (e: Exception) {
                 runCatching { audioRecorder.close() }
+                capture?.cancelCapture()
+                capture = null
                 WysawygLogger.e("Failed to start recording", e)
                 Toast.makeText(this, "Recording failed", Toast.LENGTH_SHORT).show()
             }
@@ -101,6 +126,8 @@ class WysawygKeyboardService : InputMethodService() {
     }
 
     private fun stopAndTranscribe() {
+        limitMonitor?.cancel()
+        val reservation = capture ?: return
         val generation = recordingGeneration
         val connection = recordingConnection
         recordingConnection = null
@@ -108,7 +135,8 @@ class WysawygKeyboardService : InputMethodService() {
             try {
                 val wav = withContext(Dispatchers.IO) { audioRecorder.stop() }
                 var staged: RecoveredTranscript? = null
-                ollamaClient.transcribe(wav) { text -> if (text.isNotBlank()) staged = recoveries.stage(text) }
+                client.transcribe(wav, reservation) { text -> if (text.isNotBlank()) staged = recoveries.stage(text) }
+                currentCoroutineContext().ensureActive()
                 val item = staged
                 if (item != null && eligible && generation == inputGeneration && connection?.commitText(item.text, 1) == true) {
                     if (!withContext(NonCancellable + Dispatchers.IO) { recoveries.remove(item.id) }) {
@@ -126,6 +154,8 @@ class WysawygKeyboardService : InputMethodService() {
                 Toast.makeText(this@WysawygKeyboardService, "Transcription failed: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 withContext(NonCancellable + Dispatchers.IO) { runCatching { audioRecorder.close() } }
+                reservation.cancelCapture()
+                capture = null
                 busy = false
                 render()
             }
@@ -134,11 +164,14 @@ class WysawygKeyboardService : InputMethodService() {
 
     private fun cancelCapture() {
         if (!isRecording) return
+        limitMonitor?.cancel()
         isRecording = false
         recordingConnection = null
         busy = true
         scope.launch {
             withContext(NonCancellable + Dispatchers.IO) { runCatching { audioRecorder.close() } }
+            capture?.cancelCapture()
+            capture = null
             busy = false
             render()
         }
@@ -166,6 +199,8 @@ class WysawygKeyboardService : InputMethodService() {
         recordingConnection = null
         recordButton = null
         runCatching { audioRecorder.close() }
+        capture?.cancelCapture()
+        capture = null
         super.onDestroy()
     }
 }
