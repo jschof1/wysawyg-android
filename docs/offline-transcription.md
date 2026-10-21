@@ -112,8 +112,8 @@ pinned model and NDK, verifies the cache, and builds PRs against any base branch
 
 ## Device verification entry points
 
-Parent-owned handset testing is still required. Native CLI probes are not APK
-integration proof. `PhononIntegrationTest` uses the real JNI service through the
+Native CLI probes are not APK integration proof. The installed-app results below
+are separate from those probes. `PhononIntegrationTest` uses the real JNI service through the
 router, stages into an isolated test RecoveryStore, checks caller cancellation,
 UTF-8/PFD ownership, and optionally kills only the private worker then rebinds.
 It does not change real preferences, recoveries or the clipboard. Supply a known
@@ -152,3 +152,52 @@ shell syntax and `git diff --check` passed. The persistent prepared model hashes
 and external JNI/source manifest were verified after temporary inputs were lost.
 This child did not package/install the final APK or run handset instrumentation;
 those checks, rendered screenshots and independent review remain parent-owned.
+
+## Installed APK verification (21 October 2026)
+
+The final application code is `7bcde5f`. The debug APK is 262,196,843 bytes
+(about 262 MB / 250 MiB), SHA-256
+`215633b575a8f3f88fd54b50dfbdd8fe17cef65f7eaa84cc6ced50e8be48f936`.
+Its signing certificate matches the previously installed 1.3.0 debug APK.
+All three model asset hashes match the pins; the model entries are uncompressed.
+The three native libraries are compressed, match the verified source manifest,
+and retain their 16 KiB ELF alignment. No model extraction/download is needed.
+
+On Samsung A55 / Android 15 / 4 KiB pages:
+
+- Upgraded 1.3.0 to 1.4.0 without clearing app data. Existing cloud URL, key, model,
+  prompt and floating-dictation preference remained unchanged. Offline became
+  the default; Advanced remained collapsed.
+- Four real JNI/Binder instrumentation tests passed in airplane mode with Wi-Fi
+  and mobile data disabled: known speech and disk staging, exact-once staging
+  after caller cancellation, private-worker death followed by deliberate rebind,
+  and unlinked-file Unicode transport. No HTTP backend was constructed by the
+  offline test router.
+- Five recovery-control instrumentation tests passed, including changed target,
+  Pause during completion, password hiding, explicit insertion, clipboard
+  preservation and Cancel. These use an explicit loopback cloud fixture.
+- The final APK transcribed a 72-second fixture and persisted all 132 expected
+  words in 6.483 seconds including the test's setup and assertions.
+- Actual microphone capture of a spoken playback inserted into the scratch
+  editor through both the floating control with Gboard and the optional IME.
+  A keyboard change during completion kept the transcript for explicit recovery
+  insertion. The acoustic test misheard "API key" as "APIP"; this is functional
+  evidence, not a general accuracy benchmark.
+- Real screenshots of offline settings, expanded Advanced, recording, recovery
+  and inserted text were inspected. The expanded panel fits the display after
+  its resize animation settles.
+- Restored Gboard, the exact enabled-IME list and the original network settings.
+  Only test fixtures were removed. The recovery store ended empty, as it began.
+
+The parent build passed 37 JVM tests, four Python model-cache tests and lint
+(zero errors, 76 warnings). Both APKs built successfully. Independent review
+found one P2: settings export converted absent cloud defaults into blanks.
+The fix omits absent values while retaining explicit blanks; four regressions
+pass, and follow-up review found no remaining concrete P1/P2 issues.
+
+Runtime limits: this was an upgrade test, not a clean-install handset test.
+Missing-setting defaults are covered by JVM tests. Physical Android 8 and 16 KiB
+devices, a timed five-minute automatic finish and sustained thermal testing were
+not exercised. The five-minute bound is enforced in capture, IPC and native
+decode; the native engine can still terminate its private process on OOM.
+The APK is a signed debug preview, not a Play Store production release.
