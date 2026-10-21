@@ -49,7 +49,8 @@ class OverlayService : Service() {
     private enum class State { IDLE, STARTING, RECORDING, BUSY, CANCELLING }
     private lateinit var windowManager: WindowManager
     private lateinit var audioRecorder: AudioRecorder
-    private lateinit var client: OllamaClient
+    private lateinit var client: TranscriptionClient
+    private var capture: CaptureAdmission.Reservation? = null
     private lateinit var recoveries: RecoveryStore
     private lateinit var parameters: WindowManager.LayoutParams
     private var bubble: View? = null
@@ -110,7 +111,7 @@ class OverlayService : Service() {
         WysawygLogger.init(this)
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         audioRecorder = AudioRecorder(this)
-        client = OllamaClient(this)
+        client = Transcriptions.get(this)
         recoveries = Recoveries.get(this)
         recoveryIndex = recoveries.snapshot().items.lastIndex.coerceAtLeast(0)
         getSystemService(NotificationManager::class.java).createNotificationChannel(
@@ -150,7 +151,7 @@ class OverlayService : Service() {
         }
         ServiceCompat.startForeground(this, 1, NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("WYSAWYG dictation")
-            .setContentText(if (recording) "Recording. Stop to transcribe or Cancel to discard." else "Ready when your keyboard is open")
+            .setContentText(if (recording) "Recording (5-minute limit). Stop to transcribe or Cancel to discard." else "Ready when your keyboard is open")
             .setSmallIcon(R.drawable.ic_dictation_mic)
             .setContentIntent(open).setOngoing(true)
             .addAction(0, "Pause", stop).build(), type)
@@ -309,6 +310,10 @@ class OverlayService : Service() {
 
     private fun startRecording() {
         if (state != State.IDLE || recoveryAction || !recoveries.snapshot().canCapture) return
+        capture = client.admission.acquire() ?: run {
+            toast("Finish the current dictation or resolve recovered transcripts first.")
+            return
+        }
         state = State.STARTING
         renderState()
         operation = scope.launch {
@@ -316,6 +321,8 @@ class OverlayService : Service() {
                 val destination = TextInjectorService.instance?.captureTargetForDictation()
                 currentCoroutineContext().ensureActive()
                 if (destination == null || !editorVisible || destroyed || !isEnabled(this@OverlayService)) {
+                    capture?.cancelCapture()
+                    capture = null
                     state = State.IDLE
                     renderState()
                     toast("Tap the text box again before dictating.")
@@ -330,8 +337,13 @@ class OverlayService : Service() {
                 meter = scope.launch {
                     while (isActive && state == State.RECORDING) {
                         if (!audioRecorder.recording) {
-                            toast("Microphone stopped. Recording discarded.")
-                            cancelRecording()
+                            if (audioRecorder.limitReached) {
+                                toast("5-minute limit reached. Transcribing your recording.")
+                                stopAndTranscribe()
+                            } else {
+                                toast("Microphone stopped. Recording discarded.")
+                                cancelRecording()
+                            }
                             break
                         }
                         val seconds = (SystemClock.elapsedRealtime() - startedAt) / 1000
@@ -344,6 +356,8 @@ class OverlayService : Service() {
                 throw e
             } catch (e: Exception) {
                 runCatching { audioRecorder.close() }
+                capture?.cancelCapture()
+                capture = null
                 target = null
                 state = State.IDLE
                 renderState()
@@ -369,6 +383,8 @@ class OverlayService : Service() {
         renderState()
         operation = scope.launch {
             withContext(NonCancellable + Dispatchers.IO) { runCatching { audioRecorder.close() } }
+            capture?.cancelCapture()
+            capture = null
             if (!destroyed) {
                 showForeground(recording = false)
                 state = State.IDLE
@@ -381,6 +397,7 @@ class OverlayService : Service() {
     private fun stopAndTranscribe() {
         if (state != State.RECORDING) return
         val destination = target ?: return
+        val reservation = capture ?: return
         stopMeter()
         state = State.BUSY
         renderState()
@@ -389,7 +406,7 @@ class OverlayService : Service() {
                 val audio = withContext(Dispatchers.IO) { audioRecorder.stop() }
                 showForeground(recording = false)
                 var staged: RecoveredTranscript? = null
-                client.transcribe(audio) { text ->
+                client.transcribe(audio, reservation) { text ->
                     // Runs before the cancellable IO return, including a response arriving during Pause.
                     if (text.isNotBlank()) staged = recoveries.stage(text)
                 }
@@ -403,6 +420,8 @@ class OverlayService : Service() {
                 toast("Transcription failed: ${e.message}")
             } finally {
                 withContext(NonCancellable + Dispatchers.IO) { runCatching { audioRecorder.close() } }
+                reservation.cancelCapture()
+                capture = null
                 target = null
                 if (!destroyed) {
                     showForeground(recording = false)
@@ -517,6 +536,8 @@ class OverlayService : Service() {
         scope.cancel()
         target = null
         runCatching { audioRecorder.close() }
+        capture?.cancelCapture()
+        capture = null
         hideBubble()
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()

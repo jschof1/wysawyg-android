@@ -13,6 +13,14 @@
         android:textSize="20sp"
         android:textStyle="bold" />
 
+    <RadioButton android:id="@+id/onDeviceMode" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:minHeight="48dp" android:layout_marginTop="12dp"
+        android:text="@string/on_device_transcription" android:textStyle="bold" android:checked="true" />
+    <TextView android:id="@+id/transcriptionStatus" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:text="@string/works_offline" android:paddingStart="8dp" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="@string/recording_limit" android:layout_marginTop="8dp" android:paddingStart="8dp" />
+
     <Button android:id="@+id/tryDictationButton" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:text="Try dictation" />
 
@@ -26,6 +34,58 @@
     <Button android:id="@+id/allowBackgroundButton" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:text="@string/allow_background" />
 
+    <Button
+        android:id="@+id/startOverlayButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/start_overlay" />
+
+    <Button
+        android:id="@+id/stopOverlayButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/stop_overlay" />
+
+    <Button
+        android:id="@+id/enableAccessibilityButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Enable Accessibility Service" />
+
+    <Button
+        android:id="@+id/enableKeyboardButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Enable WYSAWYG Keyboard" />
+
+    <Button
+        android:id="@+id/shareLogButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Share Log" />
+
+    <Button
+        android:id="@+id/viewLogButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="View Log" />
+
+    <Button
+        android:id="@+id/clearLogButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Clear Log" />
+
+    <Button android:id="@+id/advancedToggle" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:text="@string/advanced_show" />
+    <LinearLayout android:id="@+id/advancedSettings" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+        <RadioButton android:id="@+id/cloudMode" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/cloud_transcription" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/cloud_upload_notice" />
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -74,49 +134,9 @@
         android:gravity="top"
         android:inputType="textMultiLine" />
 
-    <Button
-        android:id="@+id/startOverlayButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="@string/start_overlay" />
-
-    <Button
-        android:id="@+id/stopOverlayButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/stop_overlay" />
-
-    <Button
-        android:id="@+id/enableAccessibilityButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Enable Accessibility Service" />
-
-    <Button
-        android:id="@+id/enableKeyboardButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Enable WYSAWYG Keyboard" />
-
-    <Button
-        android:id="@+id/shareLogButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Share Log" />
-
-    <Button
-        android:id="@+id/viewLogButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="View Log" />
-
-    <Button
-        android:id="@+id/clearLogButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Clear Log" />
+    </LinearLayout>
+    <Button android:id="@+id/speechNotices" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:text="@string/speech_licences" />
 
     <Button
         android:id="@+id/exportSettingsButton"

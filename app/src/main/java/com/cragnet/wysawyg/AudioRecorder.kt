@@ -17,13 +17,16 @@ class AudioRecorder(private val context: Context) {
         private const val SAMPLE_RATE = 16000
         private const val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
         private const val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
-        private const val TAG = "AudioRecorder"
+        const val MAX_DURATION_MS = 5 * 60 * 1000L
+        private const val MAX_PCM_BYTES = SAMPLE_RATE * 2 * 300
     }
 
     private var audioRecord: AudioRecord? = null
     private var recordingThread: Thread? = null
     @Volatile private var isRecording = false
     @Volatile private var discardRecording = false
+    @Volatile var limitReached = false
+        private set
     @Volatile var level = 0f
         private set
     val recording: Boolean get() = isRecording
@@ -32,6 +35,7 @@ class AudioRecorder(private val context: Context) {
         check(recordingThread == null) { "Recording already active" }
         lastRecording = null
         discardRecording = false
+        limitReached = false
         level = 0f
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             throw SecurityException("Allow microphone access in WYSAWYG settings before recording")
@@ -56,9 +60,14 @@ class AudioRecorder(private val context: Context) {
         recordingThread = Thread {
             val output = ByteArrayOutputStream()
             val buffer = ByteArray(bufferSize)
+            val deadline = android.os.SystemClock.elapsedRealtime() + MAX_DURATION_MS
             try {
                 while (isRecording) {
-                    val read = recorder.read(buffer, 0, buffer.size, AudioRecord.READ_NON_BLOCKING)
+                    if (output.size() >= MAX_PCM_BYTES || android.os.SystemClock.elapsedRealtime() >= deadline) {
+                        limitReached = true
+                        break
+                    }
+                    val read = recorder.read(buffer, 0, minOf(buffer.size, MAX_PCM_BYTES - output.size()), AudioRecord.READ_NON_BLOCKING)
                     when {
                         read > 0 -> {
                             level = PcmLevel.normalized(buffer, read)

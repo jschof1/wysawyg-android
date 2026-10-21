@@ -1,27 +1,32 @@
 # WYSAWYG — Voice-to-Text for Android
 
-WYSAWYG is a voice-to-text app for Android. Its floating microphone works with your existing keyboard; a custom keyboard IME is optional. Recorded audio is sent to your configured cloud or local transcription provider, and the resulting text is inserted at the cursor. Failed insertion can be recovered explicitly.
+WYSAWYG is a voice-to-text app for Android. Its floating microphone works with your existing keyboard; a custom keyboard IME is optional. English speech is transcribed on the phone using bundled Phonon 2 by default, then inserted at the cursor. No API setup or model download is needed. Optional cloud transcription lives in Advanced. Failed insertion can be recovered explicitly.
 
-## Model
-- Default: `gemma4:e4b` on Ollama Cloud; local endpoints can use `gemma4:12b`
-- Audio sent as base64-encoded 16kHz mono WAV in the `images` array
-- Endpoint: configurable in settings, default `https://ollama.com/api/chat`
-- Optional API key: sent as `Authorization: Bearer <key>`
+## Version 1.4.0 (code 9)
+
+- **On-device transcription · Works offline · English** is the default, including upgrades with old cloud credentials.
+- ARM64 Android 8+; the bundled model adds about 255 MB to the APK.
+- Recordings finish automatically after five minutes. Cancel still discards audio.
+- Advanced offers explicit cloud transcription, labelled as uploading recordings. There is no automatic fallback.
+- Existing saved-before-insert recovery, Gboard overlay and optional IME behavior remain.
+
+See [offline implementation, builds and device checks](docs/offline-transcription.md).
+Model and runtime notices are bundled and available in Settings.
 
 ## Architecture
 - `WysawygKeyboardService` — custom keyboard IME with a record button
 - `OverlayService` — optional floating record button
 - `AudioRecorder` — captures 16kHz mono PCM and writes WAV
-- `OllamaClient` — POSTs base64 audio to the configured endpoint, extracts transcribed text
+- `TranscriptionClient` — shared capture admission, explicit offline/cloud routing and completion staging
+- `PhononService` — serial native inference in a private process using PFD IPC
+- `OllamaClient` — optional cloud transcription, created only for explicit cloud mode
 - `TextInjectorService` — AccessibilityService fallback for text insertion
 - `MainActivity` — settings, logging, and import/export
 
 ## Settings
-- Alarma URL
-- API key
-- Model name
-- System prompt
-- Export/import settings as JSON
+- On-device transcription by default
+- Collapsed Advanced: cloud choice, provider URL, API key, model and prompt
+- Versioned JSON import/export, including the API key; keep exports private
 
 ## Permissions needed
 - `SYSTEM_ALERT_WINDOW`
@@ -31,9 +36,13 @@ WYSAWYG is a voice-to-text app for Android. Its floating microphone works with y
 - `BIND_INPUT_METHOD`
 
 ## Build
-Android Studio / Gradle. Minimum SDK 26 (Android 8), target SDK 34.
+Android Studio / Gradle. Minimum SDK 26 (Android 8), target SDK 34. APK builds require verified model assets and native libraries; follow the [build instructions](docs/offline-transcription.md#builds).
 
-## Cloud speech transcription (fork)
+## Earlier releases and optional cloud behavior
+
+The following verification notes describe earlier versions; their handset results do not prove the new Phonon APK integration.
+
+### Cloud speech transcription (fork)
 
 This fork supports OpenAI-compatible multipart speech transcription APIs, including Groq.
 For Groq Free use URL `https://api.groq.com/openai/v1` and model `whisper-large-v3-turbo`,

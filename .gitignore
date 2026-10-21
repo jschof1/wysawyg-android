@@ -18,3 +18,11 @@ local.properties
 /wysawyg_settings_*.json
 
 **/build/
+
+/.phonon/
+
+/build-child-check.log
+/build-child-final.log
+/scripts/__pycache__/
+
+/.kotlin/

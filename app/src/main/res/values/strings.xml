@@ -33,4 +33,13 @@
     <string name="recovered_transcripts">Recovered transcripts</string>
     <string name="later_recovery">Later</string>
     <string name="saved_text_count">Saved text (%1$d)</string>
+    <string name="on_device_transcription">On-device transcription</string>
+    <string name="works_offline">Works offline · English</string>
+    <string name="recording_limit">Recordings finish automatically after 5 minutes. Cancel discards audio.</string>
+    <string name="advanced_show">Advanced · Cloud settings</string>
+    <string name="advanced_hide">Hide advanced settings</string>
+    <string name="cloud_transcription">Use cloud transcription</string>
+    <string name="cloud_upload_notice">Recordings are uploaded to your configured provider when cloud transcription is selected. No automatic fallback.</string>
+    <string name="cloud_selected">Cloud selected · Recordings are uploaded</string>
+    <string name="speech_licences">Speech model licences</string>
 </resources>

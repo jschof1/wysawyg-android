@@ -32,6 +32,8 @@
                 android:layout_marginStart="16dp" android:max="100" android:progressTint="#8CE3C3"
                 android:progressBackgroundTint="#454B67" android:contentDescription="@string/sound_level" />
         </LinearLayout>
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/recording_limit" android:textSize="12sp" android:textColor="#C8CBE2" />
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="8dp" android:orientation="horizontal">
             <Button android:id="@+id/stopRecording" android:layout_width="0dp"
