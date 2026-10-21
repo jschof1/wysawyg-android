@@ -87,12 +87,32 @@ removed; no comment constraints remain open.
 
 The optional IME's failed-removal warning was reviewed statically; the selected
 keyboard stayed Gboard. Large-font/landscape layouts, real provider transcription,
-reboot/unlock, package replacement and prolonged OEM battery management were not
+reboot/unlock and prolonged OEM battery management were not
 tested in this pass. Force-stop still requires an explicit launch. Disk failures
 retain text in memory and cannot promise survival across process death until a
 save succeeds. Saved items expire after 24 hours.
 
-The phone disconnected after the final instrumentation run. Its current idle
-service state and final preference readback could not be checked after that run.
-On reconnection, check those first and restore any binding disconnected by
-instrumentation before treating the handset as ready for everyday use.
+## Reconnection and installed-build check, 21 October 2026
+
+The A55 reconnected with v1.3.0 running as an idle foreground service. Preferences
+matched the backup taken before the UX update. Gboard remained selected, and all
+six enabled accessibility services were unchanged.
+
+`assembleDebug --offline` passed in the canonical GitHub checkout at `2853065`.
+The exact resulting APK was installed with `adb install -r`, retaining app data.
+Its SHA-256 matched the installed package:
+
+```text
+8dbc243d3dd8d3ea3c5e4fcea7fd6634c8bcccbab2efe5ed4ec8f806c8bba21f
+```
+
+After this same-version package replacement, the accessibility and foreground
+overlay services returned without launching WYSAWYG or resetting their binding.
+The process-death script then terminated PID 27210 and observed the overlay
+attached to the new live PID 27547. The service was foreground and sticky, with
+microphone foreground state idle.
+
+Final readback confirmed unchanged preferences, Gboard and accessibility services.
+Microphone and notification permissions, overlay access and the battery exemption
+remained enabled. No new instrumentation run was needed. The phone locked during
+the follow-up, so recording controls were not visually rechecked in this pass.
