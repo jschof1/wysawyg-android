@@ -1,11 +1,11 @@
 # WYSAWYG — Voice-to-Text for Android
 
-WYSAWYG is a private, local voice-to-text app for Android. It provides a microphone button via a custom keyboard IME and an optional floating overlay. Recorded audio is sent to a configurable local endpoint (e.g. Ollama running `gemma4:12b`) for transcription, and the resulting text is inserted at the cursor.
+WYSAWYG is a voice-to-text app for Android. Its floating microphone works with your existing keyboard; a custom keyboard IME is optional. Recorded audio is sent to your configured cloud or local transcription provider, and the resulting text is inserted at the cursor. Failed insertion can be recovered explicitly.
 
 ## Model
-- Default: `gemma4:12b` on Ollama (tested working for audio with `think: false`)
+- Default: `gemma4:e4b` on Ollama Cloud; local endpoints can use `gemma4:12b`
 - Audio sent as base64-encoded 16kHz mono WAV in the `images` array
-- Endpoint: configurable in settings, default `http://localhost:11434/api/chat`
+- Endpoint: configurable in settings, default `https://ollama.com/api/chat`
 - Optional API key: sent as `Authorization: Bearer <key>`
 
 ## Architecture
@@ -58,7 +58,7 @@ The floating mode works with your existing keyboard. Enable Android Accessibilit
 and floating dictation in WYSAWYG settings. Dictation uses Android Accessibility's
 SET_TEXT and SET_SELECTION actions directly, preserving surrounding text, replacing
 only the selection, adding word spacing, and moving the cursor after the insertion.
-The clipboard is never changed. Apps that do not expose editable fields or permit
+Direct insertion leaves the clipboard unchanged. Recovery changes it only when you tap Copy. Apps that do not expose editable fields or permit
 SET_TEXT need the optional WYSAWYG keyboard, which uses InputConnection.commitText.
 This is a platform compatibility limit; the app reports failed insertion.
 
@@ -144,3 +144,80 @@ the ChatGPT direct-insertion check passed. Build and lint passed. The installed
 WhatsApp self-chat check also passed, verifying insertion without the unmarked
 placeholder, preservation of a deliberately entered "Message", and clearing
 only its own unsent draft. Across the runs, 11 distinct device checks passed.
+
+## Version 1.3.0 (code 8): recovery and recording controls
+
+Floating dictation keeps Gboard (or your selected keyboard). The idle microphone
+stays small. During recording it expands to a roughly 288dp panel with elapsed
+`mm:ss`, a live linear RMS microphone meter computed from the actual PCM16 samples,
+and 48dp Stop and Cancel controls. Only the grip moves the expanded panel. Stop
+releases the recorder and microphone foreground-service type before making the
+transcription request. Cancel, hiding the keyboard, or Pause discards an active
+recording without requesting transcription. Hold-to-cancel on Stop is retained.
+
+A successful nonblank transcript is saved **before** attempting the original safe
+insertion. Changed fields, cursor/text changes, unsupported editors or interrupted
+completion leave a recovery card. Select a non-password text box, then explicitly
+tap **Insert here** to capture and validate that current destination. Focus changes
+never trigger insertion. **Copy** changes the clipboard only when tapped and keeps
+the item; **Discard** removes the selected item. Previous/next controls navigate
+multiple items. The card hides on ineligible editors and returns with an eligible
+field and visible keyboard. **Later** collapses the card without deleting text;
+**Saved text (n)** opens it again beside the microphone. It never takes keyboard
+focus. The complete panel is
+measured and clamped above the keyboard after resizing; in very short windows the
+panel itself scrolls. Main Settings also has a Recovered transcripts access point
+for reading, copying or discarding while floating dictation is paused.
+
+Recoveries contain only `RecoveredTranscript(id, text, createdAt)`, never editor
+contents or accessibility nodes. The checksummed atomic collection lives in
+`noBackupFilesDir/recovered-transcripts.bin`, outside Android backups. Up to five
+saved transcripts are kept for 24 hours from completion, with a 1 MiB total disk
+budget. At capacity, new capture pauses until insertion, explicit discard or
+expiry frees space. No saved item is overwritten to make room. An already-completed
+concurrent result that exceeds capacity/storage limits is kept whole in memory
+and marked **Not saved**; capture pauses. Android can reject copying very large
+text; a failed Copy reports the error and keeps the whole item. Write failures also retain the complete
+in-memory text and offer retry/Copy. Memory-only text survives service Pause in the
+same process, but cannot survive process death; Copy it first. Unsaved memory-only
+items do not expire automatically. Unreadable files block capture until explicitly
+discarded, rather than being silently replaced. Interrupted temporary writes are
+cleaned up on store initialization. Saved text is private app data, not a separate
+encrypted vault. Explicit insertion is not proof that an external app sent anything.
+
+The optional WYSAWYG IME shares recorder cleanup and staged recovery, rejects
+password sessions, and validates its input generation before committing text. Its
+layout is unchanged. Provider URL, credentials, model and existing settings are
+unchanged by this release.
+
+Local verification for 1.3.0: `testDebugUnitTest`, `lintDebug`, `assembleDebug`, and
+`assembleDebugAndroidTest` run offline with JDK 21 / Android SDK 34. JVM coverage
+includes PCM silence/known levels, full-text restart durability, capacity, expiry,
+checksum/truncated-file corruption, interrupted writes, oversized results and disk
+failure retention. Existing cursor/selection tests are retained (20 JVM tests pass in total). Lint reports
+71 warnings and no errors; passing lint is not a device or visual acceptance result.
+
+`RecoveryControlsTest` is a new targeted device suite. It temporarily uses a
+loopback-only HTTP server and an empty test API key, restores provider preferences,
+and never contacts a real provider. Resolve existing recoveries first. It covers
+visible elapsed time/Cancel with zero requests, Stop releasing microphone access
+before HTTP, changed-target recovery, explicit Copy and fresh insertion, password
+hiding, service restart/Pause and disk readback, a response arriving during Pause,
+and keyboard-hide cancellation. All editor writes use the local scratch activity.
+It restores the clipboard after each scenario and keeps the selected IME unchanged.
+Run with the existing microphone/overlay/accessibility permissions and Gboard:
+
+```sh
+adb -s SERIAL install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s SERIAL install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb -s SERIAL shell am instrument -w -r \
+  -e class com.cragnet.wysawyg.RecoveryControlsTest \
+  com.cragnet.wysawyg.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Version 1.3.0 was checked on the Samsung A55 with Android 15 and Gboard. All six
+new device scenarios passed, as did the existing background and editor checks in
+targeted runs. A saved transcript survived an actual process kill and reappeared
+without opening WYSAWYG settings. See [verification details](docs/verification-1.3.0.md)
+for the combined-suite readiness flake, screenshot coverage and remaining runtime
+boundaries.

@@ -171,7 +171,7 @@ class DictationIntegrationTest {
             scenario.onActivity { assertEquals("Hello there", it.editor.text.toString()) }
             scenario.onActivity { it.editor.setText("Message") }
             device.waitForIdle()
-            val typed = requireNotNull(runBlocking { service.captureTargetForDictation() })
+            val typed = awaitDictationTarget(service)
             assertEquals("Message", typed.text)
             assertEquals(TextInjectorService.InsertResult.INSERTED, runBlocking { service.insertForDictation(typed, "received") })
             scenario.onActivity { assertEquals("Message received", it.editor.text.toString()) }

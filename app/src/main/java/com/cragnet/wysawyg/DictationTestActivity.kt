@@ -26,7 +26,7 @@ class DictationTestActivity : AppCompatActivity() {
             isFocusableInTouchMode = true
         }
         layout.addView(TextView(this).apply {
-            text = "Tap a text box. The floating microphone appears above your keyboard. Tap to record, tap again to insert. Hold while recording to cancel."
+            text = "Tap a text box, then the floating microphone above your keyboard. Stop transcribes and inserts your words. Cancel discards the recording. If insertion fails, your text stays available under Saved text."
             textSize = 16f
         })
         editor = EditText(this).apply {

@@ -20,7 +20,7 @@ class OllamaClient(private val context: Context) {
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    suspend fun transcribe(wavBytes: ByteArray): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    suspend fun transcribe(wavBytes: ByteArray, onTranscribed: (String) -> Unit = {}): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val prefs = context.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
         val url = prefs.getString(MainActivity.PREF_ALARMA_URL, "https://ollama.com/api/chat")!!
         val apiKey = prefs.getString(MainActivity.PREF_API_KEY, "") ?: ""
@@ -43,7 +43,7 @@ class OllamaClient(private val context: Context) {
 
         WysawygLogger.i("OllamaClient transcribe: endpoint=$endpoint model=$effectiveModel audio=${wavBytes.size} bytes apiKeyPresent=${apiKey.isNotBlank()}")
 
-        return@withContext transcribeAudio(endpoint, effectiveModel, systemPrompt, wavBytes, apiKey, isOllama)
+        transcribeAudio(endpoint, effectiveModel, systemPrompt, wavBytes, apiKey, isOllama).also(onTranscribed)
     }
 
     private fun transcribeAudio(endpoint: String, model: String, systemPrompt: String, wavBytes: ByteArray, apiKey: String, nativeOllama: Boolean): String {

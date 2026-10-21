@@ -15,4 +15,22 @@
     <string name="background_accessibility_needed">Enable WYSAWYG Accessibility so the button can appear when you type.</string>
     <string name="background_battery_limited">Floating dictation is enabled. Allow background running to reduce battery restrictions.</string>
     <string name="background_ready">Floating dictation is enabled and resumes automatically after restarts. You can close this screen.</string>
+    <string name="drag_dictation">Recording · drag to move</string>
+    <string name="drag_recovery">Drag recovery panel</string>
+    <string name="recording_zero">00:00</string>
+    <string name="sound_level">Live microphone level</string>
+    <string name="stop_recording">Stop</string>
+    <string name="cancel_recording">Cancel</string>
+    <string name="finish_dictation">Finish dictation. Hold to cancel</string>
+    <string name="copy_recovery">Copy</string>
+    <string name="insert_here">Insert here</string>
+    <string name="discard_recovery">Discard</string>
+    <string name="previous_recovery">Previous transcript</string>
+    <string name="next_recovery">Next transcript</string>
+    <string name="previous_recovery_symbol">‹</string>
+    <string name="next_recovery_symbol">›</string>
+    <string name="retry_recovery_save">Retry saving</string>
+    <string name="recovered_transcripts">Recovered transcripts</string>
+    <string name="later_recovery">Later</string>
+    <string name="saved_text_count">Saved text (%1$d)</string>
 </resources>

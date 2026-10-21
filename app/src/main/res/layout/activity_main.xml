@@ -16,6 +16,9 @@
     <Button android:id="@+id/tryDictationButton" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:text="Try dictation" />
 
+    <Button android:id="@+id/recoveredTranscriptsButton" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:text="@string/recovered_transcripts" />
+
     <TextView android:id="@+id/backgroundStatus" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:layout_marginTop="12dp"
         android:text="@string/background_paused" />
