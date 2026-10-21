@@ -71,7 +71,6 @@ class SettingsExporter(private val activity: AppCompatActivity, private val onIm
                 SettingsFormat.import(values).forEach { (key, value) -> putString(key, value) }
                 check(commit()) { "Could not save imported settings" }
             }
-            // Reload visible fields BEFORE onPause can save stale values over the import.
             onImported()
 
             WysawygLogger.i("Settings imported from $uri")

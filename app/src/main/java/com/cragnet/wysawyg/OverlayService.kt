@@ -420,7 +420,7 @@ class OverlayService : Service() {
                 toast("Transcription failed: ${e.message}")
             } finally {
                 withContext(NonCancellable + Dispatchers.IO) { runCatching { audioRecorder.close() } }
-                reservation.cancelCapture() // no-op once the application owns the accepted request
+                reservation.cancelCapture()
                 capture = null
                 target = null
                 if (!destroyed) {

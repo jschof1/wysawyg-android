@@ -297,7 +297,6 @@ class MainActivity : AppCompatActivity() {
             PREF_MODEL to modelInput.text.toString(), PREF_SYSTEM_PROMPT to promptInput.text.toString())
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().apply {
             putString(TranscriptionMode.KEY, transcriptionMode.name)
-            // A mode change or an ordinary visit never rewrites stored cloud credentials.
             fields.forEach { (key, value) -> if (value != loadedCredentials[key]) putString(key, value) }
             apply()
         }

@@ -73,11 +73,9 @@ class TranscriptionClient(
             ?: error("Finish the current dictation or resolve recovered transcripts first"),
         onTranscribed: (String) -> Unit = {}
     ): String = suspendCancellableCoroutine { waiter ->
-        // Acceptance transfers ownership away from the UI. Cancellation only cancels its waiter.
         try {
             reservation.accept()
         } catch (e: Exception) {
-            // A stale or reused token must not release another accepted request.
             if (waiter.isActive) waiter.resumeWithException(e)
             return@suspendCancellableCoroutine
         }
@@ -86,7 +84,7 @@ class TranscriptionClient(
             val work = scope.launch {
                 try {
                     val text = serial.withLock { router.select(selectedMode).transcribe(wavBytes) }
-                    onTranscribed(text) // Always stage exactly once, even if the UI has gone away.
+                    onTranscribed(text)
                     reservation.complete()
                     if (waiter.isActive) waiter.resume(text)
                 } catch (e: Exception) {

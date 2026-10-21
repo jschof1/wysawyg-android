@@ -13,7 +13,6 @@ object SettingsFormat {
     fun import(values: Map<String, *>): Map<String, String> = buildMap {
         val version = if (values[VERSION_KEY] == VERSION) VERSION else 1
         put(TranscriptionMode.KEY, TranscriptionMode.fromImport(version, values[TranscriptionMode.KEY] as? String).name)
-        // Import replaces only supplied credentials; switching/migrating the mode never alters them.
         credentialKeys.forEach { key -> (values[key] as? String)?.let { put(key, it) } }
     }
 }

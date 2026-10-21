@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Build on a machine with NDK r27c; copy only output/arm64-v8a back to the APK builder.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 ndk=${ANDROID_NDK_HOME:?Set ANDROID_NDK_HOME to Android NDK r27c (27.2.12479018)}
@@ -21,6 +20,5 @@ for variant in baseline dotprod; do
   "$toolchain/llvm-strip" --strip-unneeded "$out/arm64-v8a/libphonon_${variant}.so"
 done
 "$toolchain/llvm-strip" --strip-unneeded "$out/arm64-v8a/libphonon_probe.so"
-# Record provenance for externally supplied binaries; Gradle verifies hashes and source fingerprint.
 python3 "$root/scripts/native-manifest.py" write "$out"
 echo "JNI libraries: $out/arm64-v8a (API 26, ARM64, 16 KiB ELF alignment)"

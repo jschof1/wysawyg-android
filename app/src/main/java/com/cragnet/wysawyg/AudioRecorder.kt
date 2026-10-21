@@ -65,7 +65,7 @@ class AudioRecorder(private val context: Context) {
                 while (isRecording) {
                     if (output.size() >= MAX_PCM_BYTES || android.os.SystemClock.elapsedRealtime() >= deadline) {
                         limitReached = true
-                        break // normal finish: UI calls stop() and transcribes the complete bounded capture
+                        break
                     }
                     val read = recorder.read(buffer, 0, minOf(buffer.size, MAX_PCM_BYTES - output.size()), AudioRecord.READ_NON_BLOCKING)
                     when {

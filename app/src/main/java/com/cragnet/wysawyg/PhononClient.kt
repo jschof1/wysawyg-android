@@ -28,7 +28,7 @@ class PhononClient(
         }
         var binder: IBinder? = null
         var connectedOnce = false // never resubmit after Android automatically reconnects a binding
-        var closed = false // accessed only by main-thread ServiceConnection/cleanup
+        var closed = false
         val death = IBinder.DeathRecipient {
             completion.failed(IllegalStateException("On-device transcription stopped. Tap Record to try again."))
         }
@@ -65,11 +65,9 @@ class PhononClient(
                 bound = context.bindService(Intent(context, PhononService::class.java), connection, Context.BIND_AUTO_CREATE)
             }
             check(bound) { "Could not start on-device transcription" }
-            // Includes binding/model load. A wedged worker fails explicitly; never retries or uploads.
             try {
                 withTimeout(10 * 60 * 1000L) { result.await() }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                // Arbitrate timeout with a full result using the same gate as worker death.
                 completion.failed(IllegalStateException("On-device transcription timed out. Tap Record to try again.", e))
                 result.await()
             }

@@ -36,7 +36,7 @@ def prepare(folder, download=False, archive=None):
         verify(folder)
         return
     if not download:
-        verify(folder)  # fail closed; builds never implicitly download a model
+        verify(folder)
     folder.parent.mkdir(parents=True, exist_ok=True)
     if archive is None: archive = folder.parent / ARCHIVE
     if not archive.exists():

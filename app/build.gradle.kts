@@ -58,13 +58,11 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
 
-// Unit tests and Kotlin compilation need neither the 255 MB model nor an NDK.
-// APK asset/native merging fails closed if pinned inputs are absent or changed.
 val modelDirectory = providers.gradleProperty("phononModelDir")
     .orElse(rootProject.layout.projectDirectory.dir(".phonon/c_weights").asFile.absolutePath)
 val generatedModelAssets = layout.buildDirectory.dir("phonon-assets/phonon")
 val preparePhononAssets by tasks.registering {
-    outputs.upToDateWhen { false } // verify cached source AND packaged assets on every build
+    outputs.upToDateWhen { false }
     doLast {
         project.exec {
             commandLine("python3", rootProject.file("scripts/prepare-phonon-model.py"),

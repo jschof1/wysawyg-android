@@ -15,7 +15,7 @@ class PhononService : Service() {
     private object NativeOwner {
         val thread = HandlerThread("PhononOwner").apply { start() }
         val handler = Handler(thread.looper)
-        var engine = 0L // accessed exclusively on handler
+        var engine = 0L
         fun close() {
             if (engine != 0L) {
                 PhononNative.close(engine)
@@ -61,7 +61,6 @@ class PhononService : Service() {
         synchronized(lifecycleLock) {
             closing = true
             owner.removeCallbacks(idle)
-            // Serialize enqueue and closing: no late request may run after this cleanup.
             owner.post { closeEngine() }
         }
         super.onDestroy()
