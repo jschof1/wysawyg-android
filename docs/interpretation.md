@@ -21,7 +21,7 @@ inserts the raw transcript instead.
 2. **Smart cleanup** (optional, off by default): Qwen3 0.6B through LiteRT-LM fixes
    sentence breaks, question marks and list commas. Its answer is used only when
    `DictationFormatter.keepsWords` confirms it changed nothing but punctuation and capitals
-   (dropping fillers or a repeated word is allowed). Skipped for short fields, very casual
+   (dropping filler words is the only other change allowed). Skipped for short fields, very casual
    style and fewer than four words; abandoned after 8 seconds.
 3. **Finish** (`DictationFormatter.finish`)
    - App style. Categories follow Wispr Flow: Personal messages, Work messages, Email,
