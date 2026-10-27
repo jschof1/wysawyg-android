@@ -93,5 +93,6 @@ val preparePhononJni by tasks.registering {
 }
 tasks.configureEach {
     if (name.matches(Regex("merge(Debug|Release)Assets"))) dependsOn(preparePhononAssets)
-    if (name.matches(Regex("merge(Debug|Release)NativeLibs"))) dependsOn(preparePhononJni)
+    // JniLibFolders snapshots the source folder, so the libraries must exist before it runs.
+    if (name.matches(Regex("merge(Debug|Release)(JniLibFolders|NativeLibs)"))) dependsOn(preparePhononJni)
 }
