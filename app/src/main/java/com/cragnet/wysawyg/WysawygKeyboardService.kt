@@ -33,6 +33,9 @@ class WysawygKeyboardService : InputMethodService() {
     private var inputGeneration = 0
     private var recordingGeneration = 0
     private var recordingConnection: InputConnection? = null
+    private var editorPackage: String? = null
+    private var editorType = InputType.TYPE_NULL
+    private var recordingContext = DictationContext()
     private var recordButton: ImageButton? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -74,6 +77,8 @@ class WysawygKeyboardService : InputMethodService() {
             else -> false
         }
         eligible = type != InputType.TYPE_NULL && !password
+        editorPackage = info?.packageName
+        editorType = type
         render()
     }
 
@@ -101,6 +106,7 @@ class WysawygKeyboardService : InputMethodService() {
                 audioRecorder.start()
                 recordingGeneration = inputGeneration
                 recordingConnection = currentInputConnection
+                recordingContext = DictationContext(editorPackage, editorType)
                 isRecording = true
                 Toast.makeText(this, "Recording. Finishes automatically after 5 minutes.", Toast.LENGTH_SHORT).show()
                 limitMonitor = scope.launch {
@@ -135,10 +141,23 @@ class WysawygKeyboardService : InputMethodService() {
             try {
                 val wav = withContext(Dispatchers.IO) { audioRecorder.stop() }
                 var staged: RecoveredTranscript? = null
-                client.transcribe(wav, reservation) { text -> if (text.isNotBlank()) staged = recoveries.stage(text) }
+                // Reading the editor is IPC that a slow app can stall, so keep it off the main thread.
+                val shape = withContext(Dispatchers.IO) {
+                    runCatching {
+                        recordingContext.copy(
+                            textBefore = connection?.getTextBeforeCursor(200, 0)?.toString().orEmpty(),
+                            textAfter = connection?.getTextAfterCursor(200, 0)?.toString().orEmpty())
+                    }.getOrDefault(recordingContext)
+                }
+                val text = client.transcribe(wav, reservation, { Interpretation.apply(this@WysawygKeyboardService, it, shape) }) { text ->
+                    if (text.isNotBlank()) staged = recoveries.stage(text)
+                }
                 currentCoroutineContext().ensureActive()
                 val item = staged
-                if (item != null && eligible && generation == inputGeneration && connection?.commitText(item.text, 1) == true) {
+                if (item == null && text.isNotEmpty() && eligible && generation == inputGeneration) {
+                    // Only a spoken "new line": nothing worth recovering, so insert it directly.
+                    connection?.commitText(text, 1)
+                } else if (item != null && eligible && generation == inputGeneration && connection?.commitText(item.text, 1) == true) {
                     if (!withContext(NonCancellable + Dispatchers.IO) { recoveries.remove(item.id) }) {
                         Toast.makeText(this@WysawygKeyboardService,
                             "Inserted, but recovery removal was not saved. Check before inserting again.", Toast.LENGTH_LONG).show()

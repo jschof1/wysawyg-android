@@ -42,4 +42,16 @@ class SettingsFormatTest {
 
         assertEquals(stored, SettingsFormat.import(SettingsFormat.export(stored)))
     }
+
+    @Test fun writingStyleChoicesRoundTripWithTheirTypes() {
+        val stored = mapOf(TranscriptionMode.KEY to "OFFLINE", StyleSettings.KEY_MATCH_APP to false,
+            StyleSettings.KEY_SMART to true, StyleSettings.KEY_STYLE_PREFIX + "personal" to "very_casual")
+        assertEquals(stored, SettingsFormat.import(SettingsFormat.export(stored)))
+    }
+
+    @Test fun wronglyTypedStyleValuesAreDroppedOnImport() {
+        val imported = SettingsFormat.import(mapOf(SettingsFormat.VERSION_KEY to 2, StyleSettings.KEY_MATCH_APP to "false",
+            StyleSettings.KEY_STYLE_PREFIX + "personal" to true, StyleSettings.KEY_STYLE_PREFIX + "email" to "shouty"))
+        assertEquals(mapOf(TranscriptionMode.KEY to "OFFLINE"), imported)
+    }
 }

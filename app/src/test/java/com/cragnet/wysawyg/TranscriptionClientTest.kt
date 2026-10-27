@@ -126,6 +126,18 @@ class TranscriptionClientTest {
         requireNotNull(admission.acquire()).cancelCapture()
     }
 
+    @Test fun interpretationShapesStagedTextAndFailureKeepsRawTranscript() = runBlocking {
+        val admission = CaptureAdmission { true }
+        val client = TranscriptionClient(admission, { TranscriptionMode.OFFLINE },
+            TranscriptionRouter({ TranscriptionBackend { "Yeah, sure." } }, { error("HTTP") }))
+        var staged = ""
+        assertEquals("yeah sure", client.transcribe(byteArrayOf(), interpret = { "yeah sure" }) { staged = it })
+        assertEquals("yeah sure", staged)
+        assertEquals("Yeah, sure.", client.transcribe(byteArrayOf(), interpret = { error("model crashed") }) { staged = it })
+        assertEquals("Yeah, sure.", staged)
+        requireNotNull(admission.acquire()).cancelCapture()
+    }
+
     @Test fun callbackFailureStillReleasesAdmission() = runBlocking {
         val admission = CaptureAdmission { true }
         val client = TranscriptionClient(admission, { TranscriptionMode.OFFLINE },

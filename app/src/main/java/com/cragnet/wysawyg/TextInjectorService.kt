@@ -26,7 +26,10 @@ class TextInjectorService : AccessibilityService() {
         val generation: Long,
         val reportedText: String = text,
         val emptyInputEpoch: Long? = null
-    )
+    ) {
+        val dictationContext: DictationContext get() =
+            DictationContext.around(node.packageName?.toString(), node.inputType, text, selectionStart, selectionEnd)
+    }
     enum class InsertResult { INSERTED, TARGET_CHANGED, UNSUPPORTED }
 
     companion object {

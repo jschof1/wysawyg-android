@@ -10,6 +10,7 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.Toast
 import android.widget.TextView
 import android.widget.ScrollView
@@ -19,6 +20,12 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.progressindicator.LinearProgressIndicator
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -142,6 +149,18 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, DictationTestActivity::class.java))
         }
         findViewById<Button>(R.id.recoveredTranscriptsButton).setOnClickListener { showRecoveries() }
+        findViewById<Button>(R.id.stylePreviewButton).setOnClickListener { showStylePreview() }
+        styleSwitch(R.id.matchAppSwitch) { copy(matchApp = it) }
+        styleSwitch(R.id.fillerSwitch) { copy(removeFillers = it) }
+        styleSwitch(R.id.commandsSwitch) { copy(voiceCommands = it) }
+        findViewById<MaterialSwitch>(R.id.smartCleanupSwitch).setOnCheckedChangeListener { _, checked ->
+            if (!renderingStyle) setSmartCleanup(checked)
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                SmartCleanup.get(this@MainActivity).downloadState.collect { renderSmartCleanup() }
+            }
+        }
         loadSettings()
     }
 
@@ -155,7 +174,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateRecoveryCount() {
         val count = Recoveries.get(this).snapshot().items.size
-        findViewById<Button>(R.id.recoveredTranscriptsButton).text = "Recovered transcripts ($count)"
+        findViewById<Button>(R.id.recoveredTranscriptsButton).text = "${getString(R.string.recovered_transcripts)} ($count)"
     }
 
     private fun showRecoveries() {
@@ -307,6 +326,8 @@ class MainActivity : AppCompatActivity() {
     private fun loadSettings() {
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         transcriptionMode = TranscriptionMode.fromStored(prefs.getString(TranscriptionMode.KEY, null))
+        styleSettings = StyleSettings.load(prefs)
+        renderStyle()
         renderMode()
         val url = prefs.getString(PREF_ALARMA_URL, "https://ollama.com/api/chat") ?: "https://ollama.com/api/chat"
         alarmaUrlInput.setText(url)
@@ -315,6 +336,132 @@ class MainActivity : AppCompatActivity() {
         promptInput.setText(prefs.getString(PREF_SYSTEM_PROMPT, "Transcribe the audio exactly. Output only the spoken words, no commentary."))
         loadedCredentials = mapOf(PREF_ALARMA_URL to alarmaUrlInput.text.toString(), PREF_API_KEY to apiKeyInput.text.toString(),
             PREF_MODEL to modelInput.text.toString(), PREF_SYSTEM_PROMPT to promptInput.text.toString())
+    }
+
+    private var styleSettings = StyleSettings()
+    /** Set while the screen shows saved values, so only people's own changes are saved. */
+    private var renderingStyle = false
+
+    private fun styleSwitch(id: Int, change: StyleSettings.(Boolean) -> StyleSettings) {
+        findViewById<MaterialSwitch>(id).setOnCheckedChangeListener { _, checked ->
+            if (!renderingStyle) updateStyle(styleSettings.change(checked))
+        }
+    }
+
+    private fun updateStyle(settings: StyleSettings) {
+        styleSettings = settings
+        settings.save(getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()).apply()
+        renderStyle()
+    }
+
+    private fun renderStyle() {
+        val settings = styleSettings
+        renderingStyle = true
+        findViewById<MaterialSwitch>(R.id.matchAppSwitch).isChecked = settings.matchApp
+        findViewById<MaterialSwitch>(R.id.fillerSwitch).isChecked = settings.removeFillers
+        findViewById<MaterialSwitch>(R.id.commandsSwitch).isChecked = settings.voiceCommands
+        findViewById<MaterialSwitch>(R.id.smartCleanupSwitch).isChecked = settings.smartCleanup
+        renderingStyle = false
+        renderSmartCleanup()
+        val rows = findViewById<LinearLayout>(R.id.styleRows)
+        rows.removeAllViews()
+        AppCategory.values().forEach { category ->
+            val style = settings.styleFor(category)
+            rows.addView(Button(this, null, 0, com.google.android.material.R.style.Widget_Material3_Button_TextButton).apply {
+                text = getString(R.string.style_row, category.label, style.label)
+                gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
+                isEnabled = settings.matchApp
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                setOnClickListener { chooseStyle(category) }
+            })
+        }
+    }
+
+    private fun setSmartCleanup(enabled: Boolean) {
+        val model = SmartCleanup.get(this)
+        if (!enabled || model.installed) {
+            updateStyle(styleSettings.copy(smartCleanup = enabled))
+            return
+        }
+        renderStyle()
+        AlertDialog.Builder(this).setTitle(R.string.style_smart)
+            .setMessage(getString(R.string.style_smart_download))
+            .setPositiveButton("Download") { _, _ ->
+                updateStyle(styleSettings.copy(smartCleanup = true))
+                model.startDownload()
+            }.setNegativeButton("Cancel", null).show()
+    }
+
+    private fun renderSmartCleanup() {
+        val model = SmartCleanup.get(this)
+        val state = model.downloadState.value
+        val megabytes = { bytes: Long -> bytes / 1_000_000 }
+        findViewById<TextView>(R.id.smartCleanupStatus).text = when {
+            !styleSettings.smartCleanup -> getString(R.string.style_smart_hint)
+            model.installed -> getString(R.string.style_smart_ready)
+            state.running -> getString(R.string.style_smart_downloading, megabytes(state.done), megabytes(SmartCleanup.MODEL_BYTES))
+            state.error != null -> getString(R.string.style_smart_failed, state.error)
+            else -> getString(R.string.style_smart_paused)
+        }
+        findViewById<LinearProgressIndicator>(R.id.smartCleanupProgress).apply {
+            visibility = if (styleSettings.smartCleanup && state.running) View.VISIBLE else View.GONE
+            max = 1000
+            progress = (state.done * 1000 / SmartCleanup.MODEL_BYTES).toInt()
+        }
+        findViewById<Button>(R.id.smartCleanupAction).apply {
+            visibility = if (styleSettings.smartCleanup && !model.installed && !state.running) View.VISIBLE else View.GONE
+            setOnClickListener { model.startDownload() }
+        }
+    }
+
+    private fun chooseStyle(category: AppCategory) {
+        val styles = WritingStyle.values()
+        val labels = styles.map { "${it.label}\n${it.description}" }.toTypedArray()
+        AlertDialog.Builder(this).setTitle(category.label)
+            .setSingleChoiceItems(labels, styles.indexOf(styleSettings.styleFor(category))) { dialog, index ->
+                updateStyle(styleSettings.copy(styles = styleSettings.styles + (category to styles[index])))
+                dialog.dismiss()
+            }.setNegativeButton("Cancel", null).show()
+    }
+
+    /** Lets people see each style without recording, and doubles as a quick check on emulators. */
+    private fun showStylePreview() {
+        val padding = (20 * resources.displayMetrics.density).toInt()
+        val input = EditText(this).apply {
+            id = R.id.stylePreviewInput
+            hint = "Type or paste a transcript"
+            setText("Um, yeah, sounds good, see you at 6. Scratch that, see you at 7.")
+            minLines = 2
+        }
+        val output = TextView(this).apply {
+            id = R.id.stylePreviewOutput
+            textSize = 15f
+            setPadding(0, padding / 2, 0, 0)
+            setTextIsSelectable(true)
+        }
+        val samples = listOf(AppCategory.PERSONAL to "com.whatsapp", AppCategory.WORK to "com.Slack",
+            AppCategory.EMAIL to "com.google.android.gm", AppCategory.OTHER to "com.example")
+        fun render() {
+            output.text = samples.joinToString("\n\n") { (category, app) ->
+                val formatted = DictationFormatter.format(input.text.toString(), DictationContext(app), styleSettings)
+                "${category.label} (${styleSettings.styleFor(category).label}):\n$formatted"
+            }
+        }
+        input.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) = render()
+        })
+        render()
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(padding, padding / 2, padding, 0)
+            addView(input)
+            addView(output)
+        }
+        AlertDialog.Builder(this).setTitle(R.string.style_preview)
+            .setView(ScrollView(this).apply { addView(layout) })
+            .setPositiveButton("Close", null).show()
     }
 
     private fun renderMode() {

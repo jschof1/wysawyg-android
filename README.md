@@ -2,6 +2,10 @@
 
 WYSAWYG is a voice-to-text app for Android. Its floating microphone works with your existing keyboard; a custom keyboard IME is optional. English speech is transcribed on the phone using bundled Phonon 2 by default, then inserted at the cursor. No API setup or model download is needed. Optional cloud transcription lives in Advanced. Failed insertion can be recovered explicitly.
 
+## Version 1.5.0 (code 10)
+
+Adds per-app writing style; see below.
+
 ## Version 1.4.0 (code 9)
 
 - **On-device transcription · Works offline · English** is the default, including upgrades with old cloud credentials.
@@ -11,6 +15,15 @@ WYSAWYG is a voice-to-text app for Android. Its floating microphone works with y
 - Existing saved-before-insert recovery, Gboard overlay and optional IME behavior remain.
 
 See [offline implementation, builds and device checks](docs/offline-transcription.md).
+
+## Writing style (1.5.0)
+
+- Dictation now matches the app you are typing in: casual in WhatsApp and other messengers (no stray commas or final full stop), formal in email, bare words in search boxes and subject lines.
+- Filler words (um, uh, erm) are removed; "new line", "new paragraph" and "scratch that" work as commands; "at 5, no wait, 6" becomes "at 6".
+- Text fits the sentence around the cursor.
+- Optional Smart cleanup: a 345 MB on-device model (Qwen3 0.6B), downloaded once, tidies punctuation and is never allowed to change your words.
+
+See [interpretation](docs/interpretation.md).
 Model and runtime notices are bundled and available in Settings.
 
 ## Architecture
@@ -18,6 +31,8 @@ Model and runtime notices are bundled and available in Settings.
 - `OverlayService` — optional floating record button
 - `AudioRecorder` — captures 16kHz mono PCM and writes WAV
 - `TranscriptionClient` — shared capture admission, explicit offline/cloud routing and completion staging
+- `Interpretation` / `DictationFormatter` — per-app writing style, fillers, voice commands and cursor fit
+- `SmartCleanup` — optional on-device punctuation model (LiteRT-LM), guarded to keep every word
 - `PhononService` — serial native inference in a private process using PFD IPC
 - `OllamaClient` — optional cloud transcription, created only for explicit cloud mode
 - `TextInjectorService` — AccessibilityService fallback for text insertion

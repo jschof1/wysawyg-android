@@ -68,7 +68,9 @@ class SettingsExporter(private val activity: AppCompatActivity, private val onIm
             val json: JSONObject = JSONTokener(jsonString).nextValue() as JSONObject
             val values = json.keys().asSequence().associateWith { json.get(it) }
             activity.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE).edit().apply {
-                SettingsFormat.import(values).forEach { (key, value) -> putString(key, value) }
+                SettingsFormat.import(values).forEach { (key, value) ->
+                    if (value is Boolean) putBoolean(key, value) else putString(key, value.toString())
+                }
                 check(commit()) { "Could not save imported settings" }
             }
             onImported()

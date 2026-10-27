@@ -9,14 +9,15 @@ object DictationText {
         val end = if (selectionEnd < 0) start else selectionEnd.coerceAtMost(existing.length)
         val from = minOf(start, end)
         val to = maxOf(start, end)
-        val words = spoken.trim()
+        // Spoken "new line" commands may start or end the transcript; keep those line breaks.
+        val words = spoken.trim(' ', '\t').let { if (it.isBlank() && !it.contains('\n')) "" else it }
         if (words.isEmpty()) return Edit(existing, to)
         val before = existing.substring(0, from)
         val after = existing.substring(to)
         val leftSpace = before.lastOrNull()?.let { !it.isWhitespace() && it !in "([{\"“" } == true &&
-            words.first() !in ".,!?;:)]}"
+            words.first() !in ".,!?;:)]}\n"
         val rightSpace = after.firstOrNull()?.let { !it.isWhitespace() && it !in ".,!?;:)]}\"”" } == true &&
-            words.last() !in "([{"
+            words.last() !in "([{\n"
         val insertion = (if (leftSpace) " " else "") + words + (if (rightSpace) " " else "")
         return Edit(before + insertion + after, before.length + insertion.length)
     }
