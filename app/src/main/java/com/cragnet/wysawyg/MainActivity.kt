@@ -23,6 +23,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.google.android.material.color.MaterialColors
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import kotlinx.coroutines.launch
@@ -371,6 +372,8 @@ class MainActivity : AppCompatActivity() {
                 text = getString(R.string.style_row, category.label, style.label)
                 gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
                 isEnabled = settings.matchApp
+                setTextColor(MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary))
+                alpha = if (settings.matchApp) 1f else 0.4f
                 layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                 setOnClickListener { chooseStyle(category) }
             })
@@ -441,10 +444,27 @@ class MainActivity : AppCompatActivity() {
         }
         val samples = listOf(AppCategory.PERSONAL to "com.whatsapp", AppCategory.WORK to "com.Slack",
             AppCategory.EMAIL to "com.google.android.gm", AppCategory.OTHER to "com.example")
+        val model = SmartCleanup.get(this)
+        var smartPass: kotlinx.coroutines.Job? = null
         fun render() {
-            output.text = samples.joinToString("\n\n") { (category, app) ->
+            val rules = samples.joinToString("\n\n") { (category, app) ->
                 val formatted = DictationFormatter.format(input.text.toString(), DictationContext(app), styleSettings)
                 "${category.label} (${styleSettings.styleFor(category).label}):\n$formatted"
+            }
+            output.text = rules
+            smartPass?.cancel()
+            if (!styleSettings.smartCleanup || !model.installed) return
+            // Shows exactly what dictation into "Everything else" would get, after a typing pause.
+            smartPass = lifecycleScope.launch {
+                kotlinx.coroutines.delay(600)
+                val context = DictationContext(samples.last().second)
+                val prepared = DictationFormatter.prepare(input.text.toString(), context, styleSettings)
+                output.text = "$rules\n\n${getString(R.string.style_preview_smart, "…")}"
+                val started = System.currentTimeMillis()
+                val smart = model.punctuate(prepared)
+                val shown = if (smart == null) "kept rules result" else "${System.currentTimeMillis() - started} ms"
+                output.text = "$rules\n\n${getString(R.string.style_preview_smart, shown)}\n" +
+                    DictationFormatter.finish(smart ?: prepared, context, styleSettings)
             }
         }
         input.addTextChangedListener(object : android.text.TextWatcher {

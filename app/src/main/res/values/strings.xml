@@ -55,9 +55,9 @@
     <string name="style_row">%1$s · %2$s</string>
     <string name="style_fillers">Remove filler words (um, uh, erm)</string>
     <string name="style_commands">Voice commands</string>
-    <string name="style_commands_hint">Say “new line”, “new paragraph” or “scratch that” to delete what you just said.</string>
+    <string name="style_commands_hint">Say “new line” or “new paragraph” to break lines, and “scratch that” to delete the last phrase. Corrections like “at 5, no wait, 6” keep only the fix.</string>
     <string name="style_smart">Smart cleanup (on-device AI)</string>
-    <string name="style_smart_hint">A small language model tidies punctuation and handles corrections such as “actually, make it 6”. Runs on your phone; never changes your words.</string>
+    <string name="style_smart_hint">A small language model splits run-on sentences and adds missing question marks and list commas. Runs on your phone and is never allowed to change your words.</string>
     <string name="style_preview">Preview styles with your own text</string>
     <string name="enable_keyboard">Enable WYSAWYG keyboard</string>
     <string name="export_settings">Export settings</string>
@@ -74,4 +74,5 @@
     <string name="style_smart_failed">Download stopped: %1$s. Dictation still works with the built-in rules.</string>
     <string name="style_smart_paused">Model not downloaded yet. Dictation uses the built-in rules until it is.</string>
     <string name="style_smart_resume">Download model</string>
+    <string name="style_preview_smart">With Smart cleanup (%1$s):</string>
 </resources>

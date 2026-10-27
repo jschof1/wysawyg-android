@@ -55,14 +55,16 @@ object DictationFormatter {
         return fitCursor(text, context, style)
     }
 
-    /** "New line", "new paragraph" and "scratch that", as long as they are spoken as commands. */
+    /** "New line", "new paragraph" and "scratch that" (deletes the last phrase), when spoken as commands. */
     fun applyCommands(input: String, multiline: Boolean = true): String {
         var text = input
         while (true) {
             val match = scratch.find(text) ?: break
             val kept = text.substring(0, match.range.first).trimEnd().trimEnd('.', ',', '!', '?', ';', ':').trimEnd()
-            val boundary = kept.indexOfLast { it in ".!?\n" }
-            val prefix = if (boundary >= 0) kept.substring(0, boundary + 1) else ""
+            // Deletes only the last phrase, so "Sounds good, see you at 6. Scratch that, see you at 7"
+            // keeps "Sounds good".
+            val boundary = kept.indexOfLast { it in ".!?\n,;" }
+            val prefix = if (boundary >= 0) kept.substring(0, boundary + 1).let { if (it.endsWith(',') || it.endsWith(';')) it.dropLast(1) + "," else it } else ""
             val rest = text.substring(match.range.last + 1)
             text = if (prefix.isEmpty()) rest else if (prefix.endsWith('\n')) prefix + rest else "$prefix $rest"
         }
@@ -90,7 +92,19 @@ object DictationFormatter {
     fun removeFillers(text: String): String = filler.replace(text, " ")
 
     private val strongCorrection = Regex("""(?i)^(.*?[\p{L}\p{N}])[,;]\s+(?:no,? wait|wait,? no|no,? sorry|sorry,? (?:i mean|no)|i mean to say|or rather)[,:]?\s+(.+?)([.!?]*)$""")
+    /** A short correction that the sentence then continues after: "ask Tom, no wait, Sarah, to call". */
+    private val midCorrection = Regex("""(?i)^(.*?[\p{L}\p{N}])[,;]\s+(?:no,? wait|wait,? no|no,? sorry|sorry,? (?:i mean|no)|i mean to say|or rather)[,:]?\s+([^,.!?;]+?),\s+([^,.!?;].*?)([.!?]*)$""")
     private val softCorrection = Regex("""(?i)^(.*?[\p{L}\p{N}]),\s+(?:actually|i mean)[,:]?\s+(.+?)([.!?]*)$""")
+    /** The speech engine often punctuates a spoken correction as its own sentences:
+     * "at five. No wait. Six." Rejoin it so the correction applies within the sentence. */
+    private val splitCorrection = Regex("""(?i)([\p{L}\p{N}])[.!?]\s+(no,? wait|wait,? no|no,? sorry|sorry,? (?:i mean|no)|i mean to say|or rather)[.,!?:]?\s+([\p{L}\p{N}][\p{L}\p{N}'’]*)""")
+    private fun joinSplitCorrections(input: String): String = splitCorrection.replace(input) { match ->
+        val word = match.groupValues[3]
+        val lower = word.lowercase()
+        val fixed = if (lower in numberWords || lower in commonStarters && !iWords.containsMatchIn(word)) lower else word
+        "${match.groupValues[1]}, ${match.groupValues[2].lowercase()}, $fixed"
+    }
+
     private val numberWords = setOf("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
         "eleven", "twelve", "half", "quarter", "noon", "midday", "midnight")
     private val dayWords = setOf("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "today",
@@ -109,25 +123,33 @@ object DictationFormatter {
     /**
      * "Coffee at 2, actually 3" becomes "Coffee at 3". The correction replaces the earlier words
      * from the last one it lines up with: the same word ("the red one, no wait, the blue one"),
-     * or the same kind of word (a number or a day). Without such an anchor it stays as said.
+     * the same kind of word (a number or a day) or another name. Without an anchor it stays as said.
      */
-    fun applyCorrections(input: String): String = sentences(input).joinToString("") { part ->
-        val body = part.trimEnd()
+    fun applyCorrections(input: String): String = sentences(joinSplitCorrections(input)).joinToString("") { part ->
+        var body = part.trimEnd()
         val spacing = part.substring(body.length)
-        fun fix(regex: Regex, maxWords: Int): String? {
+        fun fix(regex: Regex, maxWords: Int, continues: Boolean = false): String? {
             val match = regex.find(body) ?: return null
             val before = match.groupValues[1].split(' ')
-            val correction = match.groupValues[2].trimEnd(',')
-            val replacement = correction.split(' ').filter { it.isNotBlank() }
+            val correction = match.groupValues[2].trimEnd(',') +
+                if (continues) " " + match.groupValues[3] else ""
+            val end = match.groupValues[if (continues) 4 else 3]
+            val replacement = match.groupValues[2].split(' ').filter { it.isNotBlank() }
             if (replacement.isEmpty() || replacement.size > maxWords) return null
             val first = replacement.first()
+            fun name(word: String, index: Int) = index > 0 && word.firstOrNull()?.isUpperCase() == true && !iWords.containsMatchIn(word)
             val anchor = before.indexOfLast { it.equals(first, ignoreCase = true) }.takeIf { it >= 0 }
                 ?: kind(first)?.let { wanted -> before.indexOfLast { kind(it) == wanted } }?.takeIf { it >= 0 }
+                ?: before.indices.lastOrNull { name(before[it], it) }?.takeIf { name(first, 1) }
                 ?: return null
             val kept = before.subList(0, anchor).joinToString(" ")
-            return (if (kept.isEmpty()) "" else "$kept ") + correction + match.groupValues[3]
+            return (if (kept.isEmpty()) "" else "$kept ") + correction + end
         }
-        (fix(strongCorrection, 6) ?: fix(softCorrection, 3) ?: body) + spacing
+        // A sentence can hold more than one correction; each pass removes one cue.
+        repeat(3) {
+            body = fix(midCorrection, 3, continues = true) ?: fix(strongCorrection, 6) ?: fix(softCorrection, 3) ?: return@repeat
+        }
+        body + spacing
     }
 
     private val droppable = setOf("um", "umm", "uh", "uhh", "uhm", "er", "erm", "ah", "ahm")

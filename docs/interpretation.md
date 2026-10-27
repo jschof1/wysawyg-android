@@ -9,11 +9,15 @@ inserts the raw transcript instead.
 1. **Prepare** (`DictationFormatter.prepare`, instant, always local)
    - Voice commands: "new line", "new paragraph" (only when spoken as a command, so "a new
      line of credit" is untouched; single-line fields get a space), "scratch that" (deletes
-     back to the previous sentence).
+     the last phrase, back to the previous comma or full stop; "don't scratch that car" is
+     ordinary speech).
    - Filler words: um, uh, erm, er, ahm. Case-sensitive so "ER" survives.
-   - Self-corrections: "at 5, no wait, 6" → "at 6". Strong cues (no wait, sorry I mean, or
-     rather, make that…) replace up to four words; "actually"/"I mean" only after a comma
-     and for one or two words, so "Actually I liked it" stays as said.
+   - Self-corrections: "at 5, no wait, 6" → "at 6". The correction replaces the earlier words
+     from the last one it lines up with: the same word ("the red one, no wait, the blue
+     one"), a number, a day or a name ("ask Tom, no wait, Sarah, to call"). With no anchor
+     it stays as said. Cues: no wait, no sorry, sorry I mean, I mean to say, or rather; plus
+     "actually"/"I mean" after a comma for up to three words. The bundled engine often
+     writes a correction as its own sentences ("at five. No wait. Six."); those are rejoined.
 2. **Smart cleanup** (optional, off by default): Qwen3 0.6B through LiteRT-LM fixes
    sentence breaks, question marks and list commas. Its answer is used only when
    `DictationFormatter.keepsWords` confirms it changed nothing but punctuation and capitals
@@ -52,3 +56,26 @@ WhatsApp, Slack or Gmail. Settings → Preview styles shows every style for type
   split run-on sentences correctly (≈1.6 s per message on an M-series Mac CPU).
 
 Re-tune the prompt with `scripts/smart-cleanup-eval/eval.py` against the same model file.
+
+## Checks without a phone
+
+`InterpretationIntegrationTest` runs a real recording through the bundled engine and the
+formatter (and Smart cleanup, if installed), logging under `WysawygInterpret`:
+
+```sh
+say -v Daniel -o casual.wav --file-format=WAVE --data-format=LEI16@16000 "Hey, um, yeah, I'm running a bit late. I'll be there at five, no wait, six."
+adb push casual.wav /data/local/tmp/ && adb shell "cat /data/local/tmp/casual.wav | run-as com.cragnet.wysawyg sh -c 'cat > files/casual.wav'"
+adb shell am instrument -w -e class com.cragnet.wysawyg.InterpretationIntegrationTest \
+  -e interpretFixture /data/data/com.cragnet.wysawyg/files/casual.wav com.cragnet.wysawyg.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Results on an Android 14 arm64 emulator (Apple Silicon, 27 Oct 2026):
+
+| Spoken | Engine | WhatsApp |
+|---|---|---|
+| Hey, um, yeah, I'm running a bit late. I'll be there at five, no wait, six… | Hey, um yeah, I'm running a bit late. I'll be there at five. No wait. Six. Did you… | Hey yeah I'm running a bit late. I'll be there at six. Did you want me to grab anything on the way? |
+| Can you ask Tom, no wait, Sarah, to send me the invoice by Friday, sorry, I mean Thursday? | Can you ask Tom? No wait, Sarah, to send me the invoice by Friday. Sorry, I mean Thursday. | Can you ask Sarah to send me the invoice by Thursday (Smart cleanup adds the ?) |
+
+Smart cleanup took about 2 s warm and 4–6 s including model load on the emulator CPU. It
+sometimes splits sentences wrongly while keeping every word ("Did you get home? Ok and did
+you tell Sam?"), which is why it stays optional.

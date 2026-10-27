@@ -58,6 +58,8 @@ class DictationFormatterTest {
         assertEquals("I need a new line of credit.", format("I need a new line of credit.", notes))
         assertEquals("I'll be there at 6", format("I'll be there at 5. Scratch that. I'll be there at 6."))
         assertEquals("Great. See you at 6", format("Great. I'll be there at 5. Scratch that, see you at 6."))
+        assertEquals("Yeah sounds good see you at 7", format("Um, yeah, sounds good, see you at 6. Scratch that, see you at 7."))
+        assertEquals("Sounds good, see you at 7.", format("Sounds good, see you at 6. Scratch that, see you at 7.", notes))
     }
 
     @Test fun keepsOnlyTheCorrectedVersion() {
@@ -68,6 +70,13 @@ class DictationFormatterTest {
         assertEquals("It was fine, actually I loved every minute of it.", format("It was fine, actually I loved every minute of it.", notes))
         assertEquals("I'll text her later.", format("I'll call Sarah, no wait, I'll text her later.", notes))
         assertEquals("Meet me at 6 tomorrow.", format("Meet me at 5, no wait, 6 tomorrow.", notes))
+        // As the bundled speech engine actually punctuates it.
+        assertEquals("Hey yeah I'm running a bit late. I'll be there at six. Did you want me to grab anything on the way?",
+            format("Hey, um yeah, I'm running a bit late. I'll be there at five. No wait. Six. Did you want me to grab anything on the way?"))
+        assertEquals("Ask Sarah.", format("Ask Tom. No wait. Sarah.", notes))
+        assertEquals("Can you ask Sarah to send me the invoice by Thursday.",
+            format("Can you ask Tom? No wait, Sarah, to send me the invoice by Friday. Sorry, I mean Thursday.", notes))
+        assertEquals("We need milk, no wait, eggs and bread.", format("We need milk, no wait, eggs and bread.", notes))
         assertEquals("Pick the blue one.", format("Pick the red one, no wait, the blue one.", notes))
         assertEquals("Please make that payment today.", format("Please make that payment today.", notes))
         assertEquals("I like it, actually it's great.", format("I like it, actually it's great.", notes))
