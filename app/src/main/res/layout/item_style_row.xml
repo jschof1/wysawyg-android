@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/SE.Row"
+    android:paddingStart="20dp"
+    android:paddingEnd="16dp">
+
+    <ImageView
+        android:id="@+id/styleRowIcon"
+        style="@style/SE.RowIcon" />
+
+    <TextView
+        android:id="@+id/styleRowTitle"
+        style="@style/SE.RowTitle"
+        android:layout_width="0dp"
+        android:layout_weight="1" />
+
+    <TextView
+        android:id="@+id/styleRowValue"
+        style="@style/SE.RowValue" />
+
+    <ImageView style="@style/SE.Chevron" />
+</LinearLayout>

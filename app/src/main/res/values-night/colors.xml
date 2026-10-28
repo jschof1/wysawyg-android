@@ -1,0 +1,15 @@
+<resources>
+    <color name="se_background">#111916</color>
+    <color name="se_surface">#1B2621</color>
+    <color name="se_hero">#22382D</color>
+    <color name="se_raised">#293D32</color>
+    <color name="se_text_primary">#F5F3EA</color>
+    <color name="se_text_secondary">#BBC8BF</color>
+    <color name="se_accent">#A7E6C1</color>
+    <color name="se_on_accent">#10251A</color>
+    <color name="se_outline">#7F998B</color>
+    <color name="se_divider">#354B3E</color>
+    <color name="se_error">#FFB4AB</color>
+    <color name="se_brass">#DEC58B</color>
+    <color name="se_success">#A7E6C1</color>
+</resources>

@@ -47,6 +47,11 @@
             </intent-filter>
         </receiver>
 
+        <activity android:name=".WritingStyleActivity" android:exported="false"
+            android:windowSoftInputMode="adjustResize|stateHidden" />
+        <activity android:name=".MoreSettingsActivity" android:exported="false"
+            android:windowSoftInputMode="adjustResize|stateHidden" />
+
         <activity android:name=".DictationTestActivity" android:exported="false"
             android:windowSoftInputMode="adjustResize|stateAlwaysHidden" />
 

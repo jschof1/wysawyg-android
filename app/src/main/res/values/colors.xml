@@ -1,7 +1,26 @@
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="white">#FFFFFFFF</color>
-    <color name="black">#FF000000</color>
+    <!-- Speakeasy palette, light. Dark values live in values-night/colors.xml. -->
+    <color name="se_background">#F6F5EF</color>
+    <color name="se_surface">#FFFFFF</color>
+    <color name="se_hero">#E7F1E9</color>
+    <color name="se_raised">#EDF0E9</color>
+    <color name="se_text_primary">#172A21</color>
+    <color name="se_text_secondary">#4D6356</color>
+    <color name="se_accent">#245C43</color>
+    <color name="se_on_accent">#FFFFFF</color>
+    <color name="se_outline">#6B8072</color>
+    <color name="se_divider">#D7E1D9</color>
+    <color name="se_error">#A32828</color>
+    <color name="se_brass">#76551C</color>
+    <color name="se_success">#245C43</color>
+    <color name="se_launcher_background">#111916</color>
+    <!-- The recording panel looks the same over any app, so it never follows the theme. -->
+    <color name="se_panel">#1B2621</color>
+    <color name="se_panel_text">#F5F3EA</color>
+    <color name="se_panel_secondary">#BBC8BF</color>
+    <color name="se_panel_outline">#7F998B</color>
+    <color name="se_mint">#A7E6C1</color>
+    <color name="se_brass_on_panel">#DEC58B</color>
+    <color name="se_on_mint">#10251A</color>
+    <color name="se_track">#354B3E</color>
 </resources>

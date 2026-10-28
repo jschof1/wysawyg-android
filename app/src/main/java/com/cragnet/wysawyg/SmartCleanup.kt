@@ -89,6 +89,13 @@ class SmartCleanup private constructor(private val app: Context) {
     val downloadState = MutableStateFlow(DownloadState())
     private var downloadJob: Job? = null
 
+    /** Stops an in-progress download; the partial file is kept so a later download resumes. */
+    @Synchronized fun cancelDownload() {
+        downloadJob?.cancel()
+        downloadJob = null
+        downloadState.value = DownloadState(partial.length())
+    }
+
     @Synchronized fun startDownload() {
         if (downloadJob?.isActive == true || installed) return
         downloadState.value = DownloadState(partial.length(), running = true)

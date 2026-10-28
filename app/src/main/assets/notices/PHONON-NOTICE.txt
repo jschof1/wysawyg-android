@@ -1,4 +1,4 @@
-WYSAWYG bundled on-device speech recognition
+Speakeasy bundled on-device speech recognition
 
 Phonon-2, Copyright 2026 Fermion Research.
 https://huggingface.co/FermionResearch/Phonon-2
@@ -12,7 +12,7 @@ They are provided AS IS without warranties. See the full bundled licence.
 Fermion Research retrained and quantised the encoder's linear weights to a
 five-value alphabet and quantised remaining parameters to 6-bit integer tables.
 eschmidbauer converted the model into the phonon-2-c weights.bin,
-weights.json and tokens.txt format. WYSAWYG bundles those converted assets
+weights.json and tokens.txt format. Speakeasy bundles those converted assets
 unchanged, uncompressed in the APK; there is no model download on the phone.
 Converted asset source: https://huggingface.co/eschmidbauer/phonon-2-c
 Revision: 1c91a6a7a26809fecedb35d847bef69663dde8bb
@@ -20,7 +20,7 @@ Revision: 1c91a6a7a26809fecedb35d847bef69663dde8bb
 Inference uses the MIT-licensed full C phonon-2-c engine by eschmidbauer:
 https://github.com/eschmidbauer/phonon-2-c
 Commit: c4b860f6ad745369d6f21599d6e23d381c1fcc7a
-WYSAWYG adds an Android JNI adapter, API 26 allocation compatibility, explicit
+Speakeasy adds an Android JNI adapter, API 26 allocation compatibility, explicit
 owner-thread scratch cleanup, and separate generic ARM64/dot-product builds.
 The original Fermion Python/MLX runtime and its dependencies are not included.
 The complete original model attribution notice is bundled separately as

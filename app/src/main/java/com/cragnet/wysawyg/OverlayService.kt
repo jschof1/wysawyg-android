@@ -150,7 +150,7 @@ class OverlayService : Service() {
             else -> 0
         }
         ServiceCompat.startForeground(this, 1, NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("WYSAWYG dictation")
+            .setContentTitle("Speakeasy dictation")
             .setContentText(if (recording) "Recording (5-minute limit). Stop to transcribe or Cancel to discard." else "Ready when your keyboard is open")
             .setSmallIcon(R.drawable.ic_dictation_mic)
             .setContentIntent(open).setOngoing(true)
@@ -233,9 +233,9 @@ class OverlayService : Service() {
         val statusBar = if (statusBarId != 0) resources.getDimensionPixelSize(statusBarId) else dp(24)
         val available = (keyboardBounds.top - statusBar - dp(12)).coerceAtLeast(1)
         val width = when {
-            state == State.RECORDING || recoveryVisible -> 288
-            view<View>(R.id.showRecovery)?.visibility == View.VISIBLE -> 244
-            else -> 52
+            state == State.RECORDING || recoveryVisible -> 320
+            view<View>(R.id.showRecovery)?.visibility == View.VISIBLE -> 256
+            else -> 64 // 56dp bubble plus its 4dp padding on each side
         }
         parameters.width = dp(width).coerceAtMost(screen.widthPixels - dp(24))
         panel.measure(View.MeasureSpec.makeMeasureSpec(parameters.width, View.MeasureSpec.EXACTLY),

@@ -8,26 +8,17 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
-import android.widget.Button
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.Toast
-import android.widget.TextView
-import android.widget.ScrollView
-import android.widget.RadioButton
 import android.view.View
-import androidx.appcompat.app.AlertDialog
+import android.widget.ImageView
+import android.widget.ScrollView
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
-import com.google.android.material.color.MaterialColors
-import com.google.android.material.materialswitch.MaterialSwitch
-import com.google.android.material.progressindicator.LinearProgressIndicator
-import kotlinx.coroutines.launch
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
+/** Home: is dictation ready, what is left to set up, and how text will be written. */
 class MainActivity : AppCompatActivity() {
 
     companion object {
@@ -40,226 +31,169 @@ class MainActivity : AppCompatActivity() {
         const val PREF_API_KEY = "api_key"
         const val PREF_MODEL = "model"
         const val PREF_SYSTEM_PROMPT = "system_prompt"
+        private const val PREF_SETUP_COLLAPSED = "home_setup_collapsed"
     }
-
-    private lateinit var alarmaUrlInput: EditText
-    private lateinit var apiKeyInput: EditText
-    private lateinit var modelInput: EditText
-    private lateinit var promptInput: EditText
-
-    private var transcriptionMode = TranscriptionMode.OFFLINE
-    private lateinit var settingsExporter: SettingsExporter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
         WysawygLogger.init(this)
-        settingsExporter = SettingsExporter(this) { loadSettings() }
-
-        alarmaUrlInput = findViewById(R.id.alarmaUrl)
-        apiKeyInput = findViewById(R.id.apiKey)
-        modelInput = findViewById(R.id.modelName)
-        promptInput = findViewById(R.id.systemPrompt)
-
-        findViewById<RadioButton>(R.id.onDeviceMode).setOnClickListener {
-            transcriptionMode = TranscriptionMode.OFFLINE
-            renderMode()
-            saveSettings()
-        }
-        findViewById<RadioButton>(R.id.cloudMode).setOnClickListener {
-            transcriptionMode = TranscriptionMode.CLOUD
-            renderMode()
-            saveSettings()
-        }
-        findViewById<Button>(R.id.advancedToggle).setOnClickListener {
-            val panel = findViewById<View>(R.id.advancedSettings)
-            val expanded = panel.visibility != View.VISIBLE
-            panel.visibility = if (expanded) View.VISIBLE else View.GONE
-            findViewById<Button>(R.id.advancedToggle).setText(if (expanded) R.string.advanced_hide else R.string.advanced_show)
-        }
-        findViewById<Button>(R.id.speechNotices).setOnClickListener {
-            val notices = listOf("PHONON-NOTICE.txt", "PHONON-UPSTREAM-NOTICE.txt", "phonon2-MIT.txt", "CC-BY-4.0.txt")
-                .joinToString("\n\n") { name -> assets.open("notices/$name").bufferedReader().use { it.readText() } }
-            AlertDialog.Builder(this).setTitle("Speech model licences")
-                .setView(ScrollView(this).apply { addView(TextView(this@MainActivity).apply {
-                    text = notices; setPadding(24, 16, 24, 16)
-                }) }).setPositiveButton("Close", null).show()
-        }
         WysawygLogger.i("MainActivity started")
 
-        findViewById<Button>(R.id.startOverlayButton).setOnClickListener {
-            saveSettings()
-            if (hasPermissions()) {
-                startOverlayService()
-            } else {
-                requestPermissions()
-            }
+        findViewById<View>(R.id.startOverlayButton).setOnClickListener {
+            if (hasPermissions()) startOverlayService() else requestPermissions()
         }
-
-        findViewById<Button>(R.id.stopOverlayButton).setOnClickListener {
+        findViewById<View>(R.id.stopOverlayButton).setOnClickListener {
             OverlayService.pause(this)
-            updateBackgroundStatus()
+            render()
         }
-
-        findViewById<Button>(R.id.allowBackgroundButton).setOnClickListener {
-            startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                Uri.parse("package:$packageName")))
-        }
-
-        findViewById<Button>(R.id.enableAccessibilityButton).setOnClickListener {
+        findViewById<View>(R.id.enableAccessibilityButton).setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
-
-        findViewById<Button>(R.id.enableKeyboardButton).setOnClickListener {
-            startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
+        findViewById<View>(R.id.allowBackgroundButton).setOnClickListener {
+            if (!batteryUnrestricted()) startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                Uri.parse("package:$packageName")))
         }
-
-        findViewById<Button>(R.id.viewLogButton).setOnClickListener {
-            startActivity(Intent(this, LogActivity::class.java))
+        findViewById<View>(R.id.setupHeader).setOnClickListener {
+            val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            prefs.edit().putBoolean(PREF_SETUP_COLLAPSED, !prefs.getBoolean(PREF_SETUP_COLLAPSED, false)).apply()
+            render()
         }
-
-        findViewById<Button>(R.id.shareLogButton).setOnClickListener {
-            shareLog()
+        findViewById<View>(R.id.openWritingStyle).setOnClickListener {
+            startActivity(Intent(this, WritingStyleActivity::class.java))
         }
-
-        findViewById<Button>(R.id.clearLogButton).setOnClickListener {
-            WysawygLogger.clear(this)
-        }
-
-        findViewById<Button>(R.id.exportSettingsButton).setOnClickListener {
-            saveSettings()
-            settingsExporter.promptExport()
-        }
-
-        findViewById<Button>(R.id.importSettingsButton).setOnClickListener {
-            settingsExporter.promptImport()
-        }
-
-        alarmaUrlInput.setOnFocusChangeListener { _, hasFocus ->
-            if (!hasFocus) {
-                val currentModel = modelInput.text.toString()
-                if (currentModel.isBlank()) {
-                    modelInput.setText(defaultModel(alarmaUrlInput.text.toString()))
-                }
-            }
-        }
-
-        findViewById<Button>(R.id.tryDictationButton).setOnClickListener {
-            saveSettings()
+        findViewById<View>(R.id.tryDictationButton).setOnClickListener {
             startActivity(Intent(this, DictationTestActivity::class.java))
         }
-        findViewById<Button>(R.id.recoveredTranscriptsButton).setOnClickListener { showRecoveries() }
-        findViewById<Button>(R.id.stylePreviewButton).setOnClickListener { showStylePreview() }
-        styleSwitch(R.id.matchAppSwitch) { copy(matchApp = it) }
-        styleSwitch(R.id.fillerSwitch) { copy(removeFillers = it) }
-        styleSwitch(R.id.commandsSwitch) { copy(voiceCommands = it) }
-        findViewById<MaterialSwitch>(R.id.smartCleanupSwitch).setOnCheckedChangeListener { _, checked ->
-            if (!renderingStyle) setSmartCleanup(checked)
+        findViewById<View>(R.id.recoveredTranscriptsButton).setOnClickListener {
+            RecoveredTranscripts.show(this) { render() }
         }
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                SmartCleanup.get(this@MainActivity).downloadState.collect { renderSmartCleanup() }
-            }
+        findViewById<View>(R.id.moreSettingsButton).setOnClickListener {
+            startActivity(Intent(this, MoreSettingsActivity::class.java))
         }
-        loadSettings()
     }
 
     override fun onResume() {
         super.onResume()
+        // Quietly bring the service back; missing Accessibility is shown as a setup step, not a redirect.
         if (getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean(PREF_OVERLAY_ENABLED, false) &&
-            hasPermissions() && !OverlayService.isRunning()) startOverlayService()
-        updateBackgroundStatus()
-        updateRecoveryCount()
+            hasPermissions() && TextInjectorService.instance != null && !OverlayService.isRunning()) startOverlayService()
+        render()
     }
 
-    private fun updateRecoveryCount() {
+    private fun hasPermissions() = OverlayService.hasPermissions(this)
+
+    private fun batteryUnrestricted() =
+        getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
+
+    /** Everything on this screen reflects the real permission and service state, re-read on every resume. */
+    private fun render() {
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        val enabled = OverlayService.isEnabled(this)
+        val accessibility = TextInjectorService.instance != null
+        val battery = batteryUnrestricted()
+        val permissions = hasPermissions()
+        val cloud = TranscriptionMode.fromStored(prefs.getString(TranscriptionMode.KEY, null)) == TranscriptionMode.CLOUD
+
+        val running = OverlayService.isRunning()
+        val ready = enabled && permissions && accessibility && running
+        // "On" only once the service is really running, never from the preference alone.
+        val (statusRes, statusOk) = when {
+            !enabled -> R.string.status_paused to false
+            !permissions -> R.string.status_permissions_needed to false
+            !accessibility -> R.string.status_setup_needed to false
+            !running -> R.string.status_not_running to false
+            else -> R.string.status_on to true
+        }
+        findViewById<TextView>(R.id.statusText).apply {
+            setText(statusRes)
+            setTextColor(getColor(if (statusOk) R.color.se_success else if (enabled) R.color.se_error else R.color.se_text_secondary))
+        }
+        findViewById<ImageView>(R.id.statusIcon).apply {
+            setImageResource(if (statusOk) R.drawable.se_check_circle else if (enabled) R.drawable.se_warning else R.drawable.se_pause)
+            imageTintList = getColorStateList(if (statusOk) R.color.se_success else if (enabled) R.color.se_error else R.color.se_text_secondary)
+        }
+        findViewById<TextView>(R.id.statusMeta).text = if (cloud) {
+            getString(R.string.status_meta_cloud, Uri.parse(prefs.getString(PREF_ALARMA_URL, "") ?: "").host ?: "server")
+        } else getString(R.string.status_meta_offline)
+        // Turn on stays available whenever something must be granted or retried.
+        val canStart = !enabled || !permissions || (accessibility && !running)
+        findViewById<View>(R.id.startOverlayButton).visibility = if (canStart) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.stopOverlayButton).visibility = if (canStart) View.GONE else View.VISIBLE
+        findViewById<TextView>(R.id.backgroundStatus).apply {
+            text = when {
+                enabled && !permissions -> getString(R.string.background_permissions_needed)
+                enabled && !accessibility -> getString(R.string.background_accessibility_needed)
+                enabled && !running -> getString(R.string.status_not_running_help)
+                ready && !battery -> getString(R.string.status_battery_warning)
+                else -> ""
+            }
+            visibility = if (text.isNullOrEmpty()) View.GONE else View.VISIBLE
+        }
+
+        // Setup: a missing step always shows, whatever the person collapsed earlier.
+        val done = listOf(accessibility, battery).count { it }
+        val complete = done == 2
+        val collapsed = complete && prefs.getBoolean(PREF_SETUP_COLLAPSED, false)
+        findViewById<TextView>(R.id.setupTitle).setText(if (complete) R.string.setup_complete else R.string.setup_finish)
+        findViewById<TextView>(R.id.setupCount).apply {
+            text = getString(R.string.setup_count, done)
+            visibility = if (complete) View.GONE else View.VISIBLE
+        }
+        findViewById<View>(R.id.setupHeader).isClickable = complete
+        findViewById<View>(R.id.setupExpand).apply {
+            visibility = if (complete) View.VISIBLE else View.GONE
+            rotation = if (collapsed) 0f else 180f
+        }
+        findViewById<View>(R.id.setupRows).visibility = if (collapsed) View.GONE else View.VISIBLE
+        renderSetupRow(R.id.accessibilityIcon, R.id.accessibilityTitle, R.id.accessibilityHelp, accessibility,
+            R.string.setup_accessibility_done, R.string.setup_accessibility_todo, required = true)
+        renderSetupRow(R.id.batteryIcon, R.id.batteryTitle, R.id.batteryHelp, battery,
+            R.string.setup_battery_done, R.string.setup_battery_todo, required = false)
+        findViewById<View>(R.id.batteryChevron).visibility = if (battery) View.INVISIBLE else View.VISIBLE
+
+        renderStyleHero(StyleSettings.load(prefs))
+
         val count = Recoveries.get(this).snapshot().items.size
-        findViewById<Button>(R.id.recoveredTranscriptsButton).text = "${getString(R.string.recovered_transcripts)} ($count)"
+        findViewById<TextView>(R.id.recoveredCount).text = count.toString()
+        findViewById<View>(R.id.recoveredHelp).visibility = if (count > 0) View.VISIBLE else View.GONE
+        findViewById<TextView>(R.id.footerText).setText(if (cloud) R.string.footer_cloud else R.string.footer_local)
     }
 
-    private fun showRecoveries() {
-        val store = Recoveries.get(this)
-        val snapshot = store.snapshot()
-        val policy = "Saved transcripts expire after 24 hours. Up to 5 are kept; new recording pauses when full. To insert, select a non-password text box with your keyboard open, then tap Insert here on the floating card. Pause keeps saved text."
-        if (snapshot.items.isEmpty()) {
-            val dialog = AlertDialog.Builder(this).setTitle("Recovered transcripts").setMessage(
-                when {
-                    snapshot.unreadable -> "Recovery file is unreadable. Discard unreadable data to resume. $policy"
-                    snapshot.writeFailed -> "Recovery storage could not be updated. Retry saving before recording again. $policy"
-                    else -> "No recovered transcripts. $policy"
-                }
-            ).setPositiveButton("Close", null)
-            if (snapshot.unreadable) dialog.setNegativeButton("Discard unreadable data") { _, _ ->
-                if (!store.discardUnreadable()) Toast.makeText(this, "Could not clear recovery storage.", Toast.LENGTH_LONG).show()
-                updateRecoveryCount()
-            }
-            if (snapshot.writeFailed && !snapshot.unreadable) dialog.setNeutralButton("Retry saving") { _, _ ->
-                if (!store.retrySave()) Toast.makeText(this, "Could not update recovery storage.", Toast.LENGTH_LONG).show()
-                updateRecoveryCount()
-            }
-            dialog.show()
-            return
+    private fun renderSetupRow(icon: Int, title: Int, help: Int, ok: Boolean, doneText: Int, todoText: Int, required: Boolean) {
+        findViewById<ImageView>(icon).apply {
+            setImageResource(if (ok) R.drawable.se_check_circle else R.drawable.se_warning)
+            imageTintList = getColorStateList(if (ok) R.color.se_success else if (required) R.color.se_error else R.color.se_brass)
         }
-        val dialog = AlertDialog.Builder(this).setTitle("Recovered transcripts")
-            .setItems(snapshot.items.mapIndexed { i, item ->
-                "${i + 1}. ${if (item.id in snapshot.unsavedIds) "Not saved: " else ""}${item.text.take(60)}"
-            }.toTypedArray()) { _, index ->
-                val item = snapshot.items[index]
-                val text = TextView(this).apply {
-                    text = item.text
-                    textSize = 16f
-                    val padding = (20 * resources.displayMetrics.density).toInt()
-                    setPadding(padding, padding, padding, padding)
-                }
-                val title = if (item.id in snapshot.unsavedIds) "Not saved; memory only" else "Saved for 24 hours"
-                AlertDialog.Builder(this).setTitle(title).setView(ScrollView(this).apply { addView(text) })
-                    .setPositiveButton("Copy") { _, _ ->
-                        if (!Recoveries.copy(this, item)) Toast.makeText(this, "Could not copy the full transcript. Text retained.", Toast.LENGTH_LONG).show()
-                    }.setNegativeButton("Discard") { _, _ ->
-                        if (!store.remove(item.id)) Toast.makeText(this, "Could not save removal. Transcript retained.", Toast.LENGTH_LONG).show()
-                        updateRecoveryCount()
-                    }.setNeutralButton("Close", null).show()
-            }.setNegativeButton("Close", null)
-        if (snapshot.writeFailed && !snapshot.unreadable) dialog.setPositiveButton("Retry saving") { _, _ ->
-            if (!store.retrySave()) Toast.makeText(this, "Could not save recovery text. Copy before closing the app.", Toast.LENGTH_LONG).show()
-            updateRecoveryCount()
-            showRecoveries()
-        }
-        dialog.show()
+        findViewById<TextView>(title).setText(if (ok) doneText else todoText)
+        findViewById<View>(help).visibility = if (ok) View.GONE else View.VISIBLE
     }
 
-    override fun onPause() {
-        saveSettings()
-        super.onPause()
-    }
-
-    private fun hasPermissions(): Boolean {
-        return OverlayService.hasPermissions(this)
-    }
-
-    private fun updateBackgroundStatus() {
-        val unrestricted = getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
-        findViewById<TextView>(R.id.backgroundStatus).text = when {
-            !OverlayService.isEnabled(this) -> getString(R.string.background_paused)
-            !hasPermissions() -> getString(R.string.background_permissions_needed)
-            TextInjectorService.instance == null -> getString(R.string.background_accessibility_needed)
-            !unrestricted -> getString(R.string.background_battery_limited)
-            else -> getString(R.string.background_ready)
+    /** The two examples are produced by the real formatter with the saved styles. */
+    private fun renderStyleHero(settings: StyleSettings) {
+        val sample = getString(R.string.style_sample)
+        val examples = listOf(
+            Triple(R.id.styleExampleOneMeta, R.id.styleExampleOne, AppCategory.PERSONAL to "com.whatsapp"),
+            Triple(R.id.styleExampleTwoMeta, R.id.styleExampleTwo, AppCategory.EMAIL to "com.google.android.gm"))
+        val shown = if (settings.matchApp) settings else settings.copy(matchApp = true)
+        examples.forEach { (metaId, textId, target) ->
+            val (category, app) = target
+            findViewById<TextView>(metaId).text = getString(R.string.style_example_meta,
+                category.label.substringBefore(' '), settings.styleFor(category).label)
+            findViewById<TextView>(textId).text = DictationFormatter.format(sample, DictationContext(app), shown)
         }
-        findViewById<Button>(R.id.allowBackgroundButton).apply {
-            isEnabled = !unrestricted
-            setText(if (unrestricted) R.string.background_allowed else R.string.allow_background)
+        findViewById<TextView>(R.id.styleBadge).apply {
+            setText(if (settings.matchApp) R.string.status_on else R.string.status_off)
+            setCompoundDrawablesRelativeWithIntrinsicBounds(if (settings.matchApp) R.drawable.se_check_circle_small else 0, 0, 0, 0)
         }
+        findViewById<View>(R.id.styleOffNote).visibility = if (settings.matchApp) View.GONE else View.VISIBLE
     }
 
     private fun requestPermissions() {
-        val permissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
-        ActivityCompat.requestPermissions(this, permissions.toTypedArray(), PERMISSION_REQUEST_CODE)
-
+        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), PERMISSION_REQUEST_CODE)
         if (!Settings.canDrawOverlays(this)) {
             val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
-            startActivityForResult(intent, OVERLAY_REQUEST_CODE)
+            @Suppress("DEPRECATION") startActivityForResult(intent, OVERLAY_REQUEST_CODE)
         }
     }
 
@@ -269,22 +203,21 @@ class MainActivity : AppCompatActivity() {
             if (grantResults.all { it == PackageManager.PERMISSION_GRANTED } && Settings.canDrawOverlays(this)) {
                 startOverlayService()
             } else {
-                Toast.makeText(this, "Permissions required", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Speakeasy needs the microphone and permission to show over other apps.", Toast.LENGTH_LONG).show()
             }
         }
     }
 
+    @Deprecated("Overlay permission has no result contract")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == OVERLAY_REQUEST_CODE && Settings.canDrawOverlays(this) && hasPermissions()) {
-            startOverlayService()
-        }
+        @Suppress("DEPRECATION") super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == OVERLAY_REQUEST_CODE && Settings.canDrawOverlays(this) && hasPermissions()) startOverlayService()
     }
 
     private fun startOverlayService() {
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putBoolean(PREF_OVERLAY_ENABLED, true).apply()
         if (TextInjectorService.instance == null) {
-            Toast.makeText(this, "Enable WYSAWYG Accessibility to show dictation when you type", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "Turn on Speakeasy in Accessibility to show dictation when you type", Toast.LENGTH_LONG).show()
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             return
         }
@@ -297,203 +230,21 @@ class MainActivity : AppCompatActivity() {
         } else {
             Toast.makeText(this, "Could not resume dictation. Check microphone and overlay permissions.", Toast.LENGTH_LONG).show()
         }
-        updateBackgroundStatus()
-    }
-
-    private fun shareLog() {
-        val logText = WysawygLogger.getLogText(this)
-        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, "WYSAWYG log")
-            putExtra(Intent.EXTRA_TEXT, logText)
-        }
-        startActivity(Intent.createChooser(shareIntent, "Share log"))
-    }
-
-    private var loadedCredentials = emptyMap<String, String>()
-
-    private fun saveSettings() {
-        val fields = mapOf(PREF_ALARMA_URL to alarmaUrlInput.text.toString(), PREF_API_KEY to apiKeyInput.text.toString(),
-            PREF_MODEL to modelInput.text.toString(), PREF_SYSTEM_PROMPT to promptInput.text.toString())
-        getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().apply {
-            putString(TranscriptionMode.KEY, transcriptionMode.name)
-            fields.forEach { (key, value) -> if (value != loadedCredentials[key]) putString(key, value) }
-            apply()
-        }
-        loadedCredentials = fields
-        WysawygLogger.i("Settings saved")
-    }
-
-    private fun loadSettings() {
-        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-        transcriptionMode = TranscriptionMode.fromStored(prefs.getString(TranscriptionMode.KEY, null))
-        styleSettings = StyleSettings.load(prefs)
-        renderStyle()
-        renderMode()
-        val url = prefs.getString(PREF_ALARMA_URL, "https://ollama.com/api/chat") ?: "https://ollama.com/api/chat"
-        alarmaUrlInput.setText(url)
-        apiKeyInput.setText(prefs.getString(PREF_API_KEY, ""))
-        modelInput.setText(prefs.getString(PREF_MODEL, defaultModel(url)))
-        promptInput.setText(prefs.getString(PREF_SYSTEM_PROMPT, "Transcribe the audio exactly. Output only the spoken words, no commentary."))
-        loadedCredentials = mapOf(PREF_ALARMA_URL to alarmaUrlInput.text.toString(), PREF_API_KEY to apiKeyInput.text.toString(),
-            PREF_MODEL to modelInput.text.toString(), PREF_SYSTEM_PROMPT to promptInput.text.toString())
-    }
-
-    private var styleSettings = StyleSettings()
-    /** Set while the screen shows saved values, so only people's own changes are saved. */
-    private var renderingStyle = false
-
-    private fun styleSwitch(id: Int, change: StyleSettings.(Boolean) -> StyleSettings) {
-        findViewById<MaterialSwitch>(id).setOnCheckedChangeListener { _, checked ->
-            if (!renderingStyle) updateStyle(styleSettings.change(checked))
-        }
-    }
-
-    private fun updateStyle(settings: StyleSettings) {
-        styleSettings = settings
-        settings.save(getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()).apply()
-        renderStyle()
-    }
-
-    private fun renderStyle() {
-        val settings = styleSettings
-        renderingStyle = true
-        findViewById<MaterialSwitch>(R.id.matchAppSwitch).isChecked = settings.matchApp
-        findViewById<MaterialSwitch>(R.id.fillerSwitch).isChecked = settings.removeFillers
-        findViewById<MaterialSwitch>(R.id.commandsSwitch).isChecked = settings.voiceCommands
-        findViewById<MaterialSwitch>(R.id.smartCleanupSwitch).isChecked = settings.smartCleanup
-        renderingStyle = false
-        renderSmartCleanup()
-        val rows = findViewById<LinearLayout>(R.id.styleRows)
-        rows.removeAllViews()
-        AppCategory.values().forEach { category ->
-            val style = settings.styleFor(category)
-            rows.addView(Button(this, null, 0, com.google.android.material.R.style.Widget_Material3_Button_TextButton).apply {
-                text = getString(R.string.style_row, category.label, style.label)
-                gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
-                isEnabled = settings.matchApp
-                setTextColor(MaterialColors.getColor(this, androidx.appcompat.R.attr.colorPrimary))
-                alpha = if (settings.matchApp) 1f else 0.4f
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                setOnClickListener { chooseStyle(category) }
-            })
-        }
-    }
-
-    private fun setSmartCleanup(enabled: Boolean) {
-        val model = SmartCleanup.get(this)
-        if (!enabled || model.installed) {
-            updateStyle(styleSettings.copy(smartCleanup = enabled))
-            return
-        }
-        renderStyle()
-        AlertDialog.Builder(this).setTitle(R.string.style_smart)
-            .setMessage(getString(R.string.style_smart_download))
-            .setPositiveButton("Download") { _, _ ->
-                updateStyle(styleSettings.copy(smartCleanup = true))
-                model.startDownload()
-            }.setNegativeButton("Cancel", null).show()
-    }
-
-    private fun renderSmartCleanup() {
-        val model = SmartCleanup.get(this)
-        val state = model.downloadState.value
-        val megabytes = { bytes: Long -> bytes / 1_000_000 }
-        findViewById<TextView>(R.id.smartCleanupStatus).text = when {
-            !styleSettings.smartCleanup -> getString(R.string.style_smart_hint)
-            model.installed -> getString(R.string.style_smart_ready)
-            state.running -> getString(R.string.style_smart_downloading, megabytes(state.done), megabytes(SmartCleanup.MODEL_BYTES))
-            state.error != null -> getString(R.string.style_smart_failed, state.error)
-            else -> getString(R.string.style_smart_paused)
-        }
-        findViewById<LinearProgressIndicator>(R.id.smartCleanupProgress).apply {
-            visibility = if (styleSettings.smartCleanup && state.running) View.VISIBLE else View.GONE
-            max = 1000
-            progress = (state.done * 1000 / SmartCleanup.MODEL_BYTES).toInt()
-        }
-        findViewById<Button>(R.id.smartCleanupAction).apply {
-            visibility = if (styleSettings.smartCleanup && !model.installed && !state.running) View.VISIBLE else View.GONE
-            setOnClickListener { model.startDownload() }
-        }
-    }
-
-    private fun chooseStyle(category: AppCategory) {
-        val styles = WritingStyle.values()
-        val labels = styles.map { "${it.label}\n${it.description}" }.toTypedArray()
-        AlertDialog.Builder(this).setTitle(category.label)
-            .setSingleChoiceItems(labels, styles.indexOf(styleSettings.styleFor(category))) { dialog, index ->
-                updateStyle(styleSettings.copy(styles = styleSettings.styles + (category to styles[index])))
-                dialog.dismiss()
-            }.setNegativeButton("Cancel", null).show()
-    }
-
-    /** Lets people see each style without recording, and doubles as a quick check on emulators. */
-    private fun showStylePreview() {
-        val padding = (20 * resources.displayMetrics.density).toInt()
-        val input = EditText(this).apply {
-            id = R.id.stylePreviewInput
-            hint = "Type or paste a transcript"
-            setText("Um, yeah, sounds good, see you at 6. Scratch that, see you at 7.")
-            minLines = 2
-        }
-        val output = TextView(this).apply {
-            id = R.id.stylePreviewOutput
-            textSize = 15f
-            setPadding(0, padding / 2, 0, 0)
-            setTextIsSelectable(true)
-        }
-        val samples = listOf(AppCategory.PERSONAL to "com.whatsapp", AppCategory.WORK to "com.Slack",
-            AppCategory.EMAIL to "com.google.android.gm", AppCategory.OTHER to "com.example")
-        val model = SmartCleanup.get(this)
-        var smartPass: kotlinx.coroutines.Job? = null
-        fun render() {
-            val rules = samples.joinToString("\n\n") { (category, app) ->
-                val formatted = DictationFormatter.format(input.text.toString(), DictationContext(app), styleSettings)
-                "${category.label} (${styleSettings.styleFor(category).label}):\n$formatted"
-            }
-            output.text = rules
-            smartPass?.cancel()
-            if (!styleSettings.smartCleanup || !model.installed) return
-            // Shows exactly what dictation into "Everything else" would get, after a typing pause.
-            smartPass = lifecycleScope.launch {
-                kotlinx.coroutines.delay(600)
-                val context = DictationContext(samples.last().second)
-                val prepared = DictationFormatter.prepare(input.text.toString(), context, styleSettings)
-                output.text = "$rules\n\n${getString(R.string.style_preview_smart, "…")}"
-                val started = System.currentTimeMillis()
-                val smart = model.punctuate(prepared)
-                val shown = if (smart == null) "kept rules result" else "${System.currentTimeMillis() - started} ms"
-                output.text = "$rules\n\n${getString(R.string.style_preview_smart, shown)}\n" +
-                    DictationFormatter.finish(smart ?: prepared, context, styleSettings)
-            }
-        }
-        input.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) = render()
-        })
         render()
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(padding, padding / 2, padding, 0)
-            addView(input)
-            addView(output)
-        }
-        AlertDialog.Builder(this).setTitle(R.string.style_preview)
-            .setView(ScrollView(this).apply { addView(layout) })
-            .setPositiveButton("Close", null)
-            .setOnDismissListener { smartPass?.cancel() }
-            .show()
+        // The service starts asynchronously; look again once it has had a moment.
+        window.decorView.postDelayed({ if (!isFinishing) render() }, 1000)
     }
+}
 
-    private fun renderMode() {
-        findViewById<RadioButton>(R.id.onDeviceMode).isChecked = transcriptionMode == TranscriptionMode.OFFLINE
-        findViewById<RadioButton>(R.id.cloudMode).isChecked = transcriptionMode == TranscriptionMode.CLOUD
-        findViewById<TextView>(R.id.transcriptionStatus).setText(
-            if (transcriptionMode == TranscriptionMode.OFFLINE) R.string.works_offline else R.string.cloud_selected)
-    }
-
-    private fun defaultModel(url: String): String {
-        return if (url.contains("ollama.com")) "gemma4:e4b" else "gemma4:12b"
-    }
+/** Shared scrollable text dialog for licences and similar long text. */
+internal fun AppCompatActivity.showLongText(title: String, body: String) {
+    val padding = (20 * resources.displayMetrics.density).toInt()
+    MaterialAlertDialogBuilder(this).setTitle(title)
+        .setView(ScrollView(this).apply {
+            addView(TextView(this@showLongText).apply {
+                text = body
+                setTextIsSelectable(true)
+                setPadding(padding, padding / 2, padding, padding)
+            })
+        }).setPositiveButton("Close", null).show()
 }

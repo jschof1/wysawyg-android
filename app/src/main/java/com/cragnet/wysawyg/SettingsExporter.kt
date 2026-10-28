@@ -28,7 +28,7 @@ class SettingsExporter(private val activity: AppCompatActivity, private val onIm
 
     fun promptExport() {
         val timestamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.UK).format(java.util.Date())
-        exportLauncher.launch("wysawyg_settings_$timestamp.json")
+        exportLauncher.launch("speakeasy_settings_$timestamp.json")
     }
 
     fun promptImport() {

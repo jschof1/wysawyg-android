@@ -24,7 +24,7 @@ class LogActivity : AppCompatActivity() {
         findViewById<Button>(R.id.shareLogButton).setOnClickListener {
             val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                 type = "text/plain"
-                putExtra(android.content.Intent.EXTRA_SUBJECT, "WYSAWYG log")
+                putExtra(android.content.Intent.EXTRA_SUBJECT, "Speakeasy log")
                 putExtra(android.content.Intent.EXTRA_TEXT, logView.text.toString())
             }
             startActivity(android.content.Intent.createChooser(shareIntent, "Share log"))

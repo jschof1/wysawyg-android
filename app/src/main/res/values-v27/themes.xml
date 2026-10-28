@@ -1,0 +1,5 @@
+<resources>
+    <style name="Theme.Wysawyg" parent="Base.Theme.Wysawyg">
+        <item name="android:windowLightNavigationBar">@bool/se_light_bars</item>
+    </style>
+</resources>

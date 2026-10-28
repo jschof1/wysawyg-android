@@ -1,340 +1,438 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/homeScroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:clipToPadding="false"
     android:fillViewport="true">
 
     <LinearLayout
+        android:id="@+id/homeContent"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingHorizontal="16dp"
-        android:paddingTop="24dp"
-        android:paddingBottom="32dp">
+        android:paddingStart="20dp"
+        android:paddingTop="20dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="28dp">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <!-- Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/app_title"
-            android:textAppearance="?attr/textAppearanceHeadlineMedium" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:text="@string/app_tagline"
-            android:textAppearance="?attr/textAppearanceBodyMedium"
-            android:textColor="?android:attr/textColorSecondary" />
+            <ImageView
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/se_brand_mark"
+                app:tint="@color/se_brass" />
 
-        <!-- Floating dictation -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="14dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/SE.Wordmark"
+                    android:accessibilityHeading="true"
+                    android:text="@string/app_title" />
+
+                <TextView
+                    style="@style/SE.Body"
+                    android:text="@string/tagline"
+                    android:textColor="@color/se_text_secondary" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Floating dictation status -->
         <com.google.android.material.card.MaterialCardView
-            style="@style/SettingsCard"
-            android:layout_marginTop="20dp">
+            style="@style/SE.Card"
+            android:layout_marginTop="24dp">
 
-            <LinearLayout style="@style/SettingsCardBody">
+            <LinearLayout
+                style="@style/SE.CardBody"
+                android:orientation="vertical">
 
-                <TextView style="@style/SectionTitle" android:text="@string/section_dictation" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/SE.Title"
+                            android:accessibilityHeading="true"
+                            android:text="@string/section_dictation" />
+
+                        <LinearLayout
+                            android:id="@+id/statusLine"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <ImageView
+                                android:id="@+id/statusIcon"
+                                android:layout_width="22dp"
+                                android:layout_height="22dp"
+                                android:importantForAccessibility="no"
+                                android:src="@drawable/se_check_circle"
+                                app:tint="@color/se_success" />
+
+                            <TextView
+                                android:id="@+id/statusText"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:text="@string/status_paused"
+                                android:textAppearance="@style/SE.Text.RowStrong"
+                                android:textColor="@color/se_success" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/statusMeta"
+                            style="@style/SE.Meta"
+                            android:layout_marginTop="4dp"
+                            android:text="@string/status_meta_offline" />
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/startOverlayButton"
+                        style="@style/SE.Button"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:text="@string/start_overlay"
+                        app:icon="@drawable/se_mic"
+                        app:iconSize="20dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/stopOverlayButton"
+                        style="@style/SE.Button.Outlined"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="12dp"
+                        android:text="@string/stop_overlay"
+                        android:visibility="gone"
+                        app:icon="@drawable/se_pause"
+                        app:iconSize="20dp" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/backgroundStatus"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    style="@style/SE.Meta"
+                    android:layout_marginTop="12dp"
                     android:text="@string/background_paused"
-                    android:textAppearance="?attr/textAppearanceBodyMedium" />
+                    android:visibility="gone" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Setup checklist -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/setupCard"
+            style="@style/SE.Card">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingBottom="8dp">
 
                 <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:orientation="horizontal">
+                    android:id="@+id/setupHeader"
+                    style="@style/SE.Row"
+                    android:paddingStart="20dp"
+                    android:paddingTop="16dp"
+                    android:paddingEnd="20dp">
 
-                    <Button
-                        android:id="@+id/startOverlayButton"
-                        style="@style/Widget.Material3.Button"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginEnd="8dp"
-                        android:text="@string/start_overlay" />
+                    <LinearLayout style="@style/SE.RowText">
 
-                    <Button
-                        android:id="@+id/stopOverlayButton"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/stop_overlay" />
+                        <TextView
+                            android:id="@+id/setupTitle"
+                            style="@style/SE.Title"
+                            android:accessibilityHeading="true"
+                            android:text="@string/setup_complete" />
+
+                        <TextView
+                            android:id="@+id/setupCount"
+                            style="@style/SE.Meta"
+                            android:visibility="gone" />
+                    </LinearLayout>
+
+                    <ImageView
+                        android:id="@+id/setupExpand"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/se_expand_more"
+                        app:tint="@color/se_text_secondary" />
                 </LinearLayout>
 
-                <Button
-                    android:id="@+id/enableAccessibilityButton"
-                    style="@style/SettingsRowButton"
-                    android:text="@string/enable_accessibility" />
-
-                <Button
-                    android:id="@+id/allowBackgroundButton"
-                    style="@style/SettingsRowButton"
-                    android:text="@string/allow_background" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Try it -->
-        <com.google.android.material.card.MaterialCardView style="@style/SettingsCard">
-
-            <LinearLayout style="@style/SettingsCardBody">
-
-                <TextView style="@style/SectionTitle" android:text="@string/section_try" />
-
-                <Button
-                    android:id="@+id/tryDictationButton"
-                    style="@style/Widget.Material3.Button.TonalButton"
+                <LinearLayout
+                    android:id="@+id/setupRows"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="@string/try_dictation" />
+                    android:orientation="vertical">
 
-                <Button
-                    android:id="@+id/recoveredTranscriptsButton"
-                    style="@style/SettingsRowButton"
-                    android:text="@string/recovered_transcripts" />
+                    <LinearLayout
+                        android:id="@+id/enableAccessibilityButton"
+                        style="@style/SE.Row"
+                        android:paddingStart="20dp">
+
+                        <ImageView
+                            android:id="@+id/accessibilityIcon"
+                            style="@style/SE.RowIcon"
+                            android:src="@drawable/se_check_circle" />
+
+                        <LinearLayout style="@style/SE.RowText">
+
+                            <TextView
+                                android:id="@+id/accessibilityTitle"
+                                style="@style/SE.RowTitle"
+                                android:text="@string/setup_accessibility_done" />
+
+                            <TextView
+                                android:id="@+id/accessibilityHelp"
+                                style="@style/SE.Meta"
+                                android:text="@string/setup_accessibility_help"
+                                android:visibility="gone" />
+                        </LinearLayout>
+
+                        <ImageView style="@style/SE.Chevron" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/allowBackgroundButton"
+                        style="@style/SE.Row"
+                        android:paddingStart="20dp">
+
+                        <ImageView
+                            android:id="@+id/batteryIcon"
+                            style="@style/SE.RowIcon"
+                            android:src="@drawable/se_check_circle" />
+
+                        <LinearLayout style="@style/SE.RowText">
+
+                            <TextView
+                                android:id="@+id/batteryTitle"
+                                style="@style/SE.RowTitle"
+                                android:text="@string/setup_battery_done" />
+
+                            <TextView
+                                android:id="@+id/batteryHelp"
+                                style="@style/SE.Meta"
+                                android:text="@string/setup_battery_help"
+                                android:visibility="gone" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:id="@+id/batteryChevron"
+                            style="@style/SE.Chevron" />
+                    </LinearLayout>
+                </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Writing style -->
-        <com.google.android.material.card.MaterialCardView style="@style/SettingsCard">
+        <!-- Writing style hero -->
+        <com.google.android.material.card.MaterialCardView style="@style/SE.Card.Hero">
 
-            <LinearLayout style="@style/SettingsCardBody">
-
-                <TextView style="@style/SectionTitle" android:text="@string/section_style" />
-
-                <TextView
-                    style="@style/SectionHint"
-                    android:text="@string/style_hint" />
-
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/matchAppSwitch"
-                    style="@style/SettingsSwitch"
-                    android:text="@string/style_match_app" />
+            <LinearLayout style="@style/SE.CardBody">
 
                 <LinearLayout
-                    android:id="@+id/styleRows"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical" />
-
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/fillerSwitch"
-                    style="@style/SettingsSwitch"
-                    android:text="@string/style_fillers" />
-
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/commandsSwitch"
-                    style="@style/SettingsSwitch"
-                    android:text="@string/style_commands" />
-
-                <TextView
-                    style="@style/SectionHint"
-                    android:layout_marginTop="0dp"
-                    android:text="@string/style_commands_hint" />
-
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/smartCleanupSwitch"
-                    style="@style/SettingsSwitch"
-                    android:text="@string/style_smart" />
-
-                <TextView
-                    android:id="@+id/smartCleanupStatus"
-                    style="@style/SectionHint"
-                    android:layout_marginTop="0dp"
-                    android:text="@string/style_smart_hint" />
-
-                <com.google.android.material.progressindicator.LinearProgressIndicator
-                    android:id="@+id/smartCleanupProgress"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:visibility="gone" />
-
-                <Button
-                    android:id="@+id/smartCleanupAction"
-                    style="@style/SettingsRowButton"
-                    android:text="@string/style_smart_resume"
-                    android:visibility="gone" />
-
-                <Button
-                    android:id="@+id/stylePreviewButton"
-                    style="@style/SettingsRowButton"
-                    android:text="@string/style_preview" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Transcription -->
-        <com.google.android.material.card.MaterialCardView style="@style/SettingsCard">
-
-            <LinearLayout style="@style/SettingsCardBody">
-
-                <TextView style="@style/SectionTitle" android:text="@string/section_transcription" />
-
-                <RadioButton
-                    android:id="@+id/onDeviceMode"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:checked="true"
-                    android:minHeight="48dp"
-                    android:text="@string/on_device_transcription" />
-
-                <TextView
-                    android:id="@+id/transcriptionStatus"
-                    style="@style/SectionHint"
-                    android:layout_marginTop="0dp"
-                    android:paddingStart="32dp"
-                    android:text="@string/works_offline" />
-
-                <TextView
-                    style="@style/SectionHint"
-                    android:paddingStart="32dp"
-                    android:text="@string/recording_limit" />
-
-                <Button
-                    android:id="@+id/advancedToggle"
-                    style="@style/SettingsRowButton"
-                    android:text="@string/advanced_show" />
-
-                <LinearLayout
-                    android:id="@+id/advancedSettings"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:visibility="gone">
-
-                    <RadioButton
-                        android:id="@+id/cloudMode"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:minHeight="48dp"
-                        android:text="@string/cloud_transcription" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
                     <TextView
-                        style="@style/SectionHint"
-                        android:layout_marginTop="0dp"
-                        android:paddingStart="32dp"
-                        android:text="@string/cloud_upload_notice" />
+                        style="@style/SE.Hero"
+                        android:accessibilityHeading="true"
+                        android:text="@string/style_title" />
 
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/SettingsField"
-                        android:hint="@string/server_url">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/alarmaUrl"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textUri" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/SettingsField"
-                        android:hint="@string/api_key"
-                        app:endIconMode="password_toggle">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/apiKey"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textPassword" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/SettingsField"
-                        android:hint="@string/model">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/modelName"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="text" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/SettingsField"
-                        android:hint="@string/system_prompt">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/systemPrompt"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="top"
-                            android:inputType="textMultiLine"
-                            android:minLines="3" />
-                    </com.google.android.material.textfield.TextInputLayout>
+                    <TextView
+                        android:id="@+id/styleBadge"
+                        style="@style/SE.Badge"
+                        android:background="@drawable/se_badge_surface"
+                        android:drawablePadding="6dp"
+                        android:paddingStart="12dp"
+                        android:paddingTop="6dp"
+                        android:paddingEnd="14dp"
+                        android:paddingBottom="6dp"
+                        android:text="@string/status_on" />
                 </LinearLayout>
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- More -->
-        <com.google.android.material.card.MaterialCardView style="@style/SettingsCard">
-
-            <LinearLayout style="@style/SettingsCardBody">
-
-                <TextView style="@style/SectionTitle" android:text="@string/section_more" />
-
-                <Button
-                    android:id="@+id/enableKeyboardButton"
-                    style="@style/SettingsRowButton"
-                    android:text="@string/enable_keyboard" />
-
-                <Button
-                    android:id="@+id/exportSettingsButton"
-                    style="@style/SettingsRowButton"
-                    android:text="@string/export_settings" />
-
-                <Button
-                    android:id="@+id/importSettingsButton"
-                    style="@style/SettingsRowButton"
-                    android:text="@string/import_settings" />
-
-                <Button
-                    android:id="@+id/speechNotices"
-                    style="@style/SettingsRowButton"
-                    android:text="@string/speech_licences" />
 
                 <TextView
-                    style="@style/SectionHint"
-                    android:layout_marginTop="12dp"
-                    android:text="@string/diagnostics" />
+                    style="@style/SE.Body"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/style_tagline"
+                    android:textColor="@color/se_text_secondary" />
 
-                <LinearLayout
+                <com.google.android.material.card.MaterialCardView style="@style/SE.Inset">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:id="@+id/styleExampleOneMeta"
+                            style="@style/SE.Meta" />
+
+                        <TextView
+                            android:id="@+id/styleExampleOne"
+                            style="@style/SE.Body"
+                            android:textSize="20sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView style="@style/SE.Inset">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:id="@+id/styleExampleTwoMeta"
+                            style="@style/SE.Meta" />
+
+                        <TextView
+                            android:id="@+id/styleExampleTwo"
+                            style="@style/SE.Body"
+                            android:textSize="20sp" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    android:id="@+id/styleOffNote"
+                    style="@style/SE.Meta"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/style_off_note"
+                    android:visibility="gone" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/openWritingStyle"
+                    style="@style/SE.Button"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal">
+                    android:layout_marginTop="16dp"
+                    android:gravity="start|center_vertical"
+                    android:text="@string/style_open"
+                    app:icon="@drawable/se_arrow_forward"
+                    app:iconGravity="end" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-                    <Button
-                        android:id="@+id/viewLogButton"
-                        style="@style/Widget.Material3.Button.TextButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/view_log" />
+        <!-- Tools -->
+        <com.google.android.material.card.MaterialCardView style="@style/SE.Card">
 
-                    <Button
-                        android:id="@+id/shareLogButton"
-                        style="@style/Widget.Material3.Button.TextButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/share_log" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
 
-                    <Button
-                        android:id="@+id/clearLogButton"
-                        style="@style/Widget.Material3.Button.TextButton"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/clear_log" />
+                <LinearLayout
+                    android:id="@+id/tryDictationButton"
+                    style="@style/SE.Row"
+                    android:minHeight="64dp">
+
+                    <ImageView
+                        style="@style/SE.RowIcon"
+                        android:src="@drawable/se_mic" />
+
+                    <LinearLayout style="@style/SE.RowText">
+
+                        <TextView
+                            style="@style/SE.RowTitle"
+                            android:text="@string/try_dictation" />
+
+                        <TextView
+                            style="@style/SE.Meta"
+                            android:text="@string/tools_try_help" />
+                    </LinearLayout>
+
+                    <ImageView style="@style/SE.Chevron" />
+                </LinearLayout>
+
+                <View style="@style/SE.Divider" />
+
+                <LinearLayout
+                    android:id="@+id/recoveredTranscriptsButton"
+                    style="@style/SE.Row"
+                    android:minHeight="64dp">
+
+                    <ImageView
+                        style="@style/SE.RowIcon"
+                        android:src="@drawable/se_description" />
+
+                    <LinearLayout style="@style/SE.RowText">
+
+                        <TextView
+                            style="@style/SE.RowTitle"
+                            android:text="@string/recovered_transcripts" />
+
+                        <TextView
+                            android:id="@+id/recoveredHelp"
+                            style="@style/SE.Meta"
+                            android:text="@string/tools_recovered_help"
+                            android:visibility="gone" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/recoveredCount"
+                        style="@style/SE.Badge"
+                        android:text="0" />
+
+                    <ImageView style="@style/SE.Chevron" />
+                </LinearLayout>
+
+                <View style="@style/SE.Divider" />
+
+                <LinearLayout
+                    android:id="@+id/moreSettingsButton"
+                    style="@style/SE.Row"
+                    android:minHeight="64dp">
+
+                    <ImageView
+                        style="@style/SE.RowIcon"
+                        android:src="@drawable/se_settings" />
+
+                    <LinearLayout style="@style/SE.RowText">
+
+                        <TextView
+                            style="@style/SE.RowTitle"
+                            android:text="@string/tools_more" />
+
+                        <TextView
+                            style="@style/SE.Meta"
+                            android:text="@string/tools_more_help" />
+                    </LinearLayout>
+
+                    <ImageView style="@style/SE.Chevron" />
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:id="@+id/footerText"
+            style="@style/SE.Meta"
+            android:layout_marginTop="24dp"
+            android:gravity="center"
+            android:text="@string/footer_local" />
     </LinearLayout>
-</ScrollView>
+</androidx.core.widget.NestedScrollView>

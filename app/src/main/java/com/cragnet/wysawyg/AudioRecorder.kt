@@ -38,7 +38,7 @@ class AudioRecorder(private val context: Context) {
         limitReached = false
         level = 0f
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            throw SecurityException("Allow microphone access in WYSAWYG settings before recording")
+            throw SecurityException("Allow microphone access in Speakeasy settings before recording")
         }
         val minBufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT)
         val bufferSize = minBufferSize.coerceAtLeast(4096)

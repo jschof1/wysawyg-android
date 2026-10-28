@@ -1,6 +1,15 @@
-# WYSAWYG — Voice-to-Text for Android
+# Speakeasy — Voice-to-Text for Android
 
-WYSAWYG is a voice-to-text app for Android. Its floating microphone works with your existing keyboard; a custom keyboard IME is optional. English speech is transcribed on the phone using bundled Phonon 2 by default, then inserted at the cursor. No API setup or model download is needed. Optional cloud transcription lives in Advanced. Failed insertion can be recovered explicitly.
+Speakeasy (formerly WYSAWYG) is a voice-to-text app for Android. Its floating microphone works with your existing keyboard; a custom keyboard IME is optional. English speech is transcribed on the phone using bundled Phonon 2 by default, then inserted at the cursor. No API setup or model download is needed. Optional cloud transcription lives in More settings. Failed insertion can be recovered explicitly.
+
+## Version 1.6.0 (code 11)
+
+The Speakeasy redesign: a forest-and-mint theme in light and
+dark, the Manrope typeface, a home screen showing dictation status and setup at a glance, a
+Writing style screen with live previews, More settings for keyboard, transcription, backup and
+logs, and a restyled floating microphone. The internal application ID is unchanged, so
+updating keeps settings, saved transcripts and permissions. Design record:
+[docs/design/speakeasy](docs/design/speakeasy/spec.md).
 
 ## Version 1.5.0 (code 10)
 

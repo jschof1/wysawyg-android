@@ -40,7 +40,12 @@ class RecoverySettingsTest {
             while (OverlayService.isRunning() && SystemClock.uptimeMillis() < deadline) SystemClock.sleep(100)
             assertFalse(OverlayService.isRunning())
             field.set(null, store)
-            ActivityScenario.launch(MainActivity::class.java).use {
+            ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+                // The row sits below the fold on the home screen; scroll it into view like a person would.
+                scenario.onActivity { activity ->
+                    val row = activity.findViewById<android.view.View>(R.id.recoveredTranscriptsButton)
+                    row.requestRectangleOnScreen(android.graphics.Rect(0, 0, row.width, row.height), true)
+                }
                 requireNotNull(device.wait(Until.findObject(By.res(context.packageName, "recoveredTranscriptsButton")), 5000)).click()
                 assertNotNull(device.wait(Until.findObject(By.textContains("Not saved:")), 5000))
                 val retry = requireNotNull(device.findObject(By.text(Pattern.compile("Retry saving", Pattern.CASE_INSENSITIVE))))
