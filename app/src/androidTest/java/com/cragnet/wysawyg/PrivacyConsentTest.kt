@@ -25,8 +25,8 @@ class PrivacyConsentTest {
     private val settings = context.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
     private val privacy = context.getSharedPreferences("speakeasy_privacy", Context.MODE_PRIVATE)
     private val device = UiDevice.getInstance(instrumentation)
-    private var savedSettings = emptyMap<String, *>()
-    private var savedPrivacy = emptyMap<String, *>()
+    private var savedSettings: Map<String, Any?> = emptyMap()
+    private var savedPrivacy: Map<String, Any?> = emptyMap()
     private var capturedState = false
     private lateinit var server: MockWebServer
 
