@@ -19,6 +19,9 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 class TranscriptionClientTest {
+    private fun idleAdmission(canCapture: () -> Boolean = { true }) =
+        CaptureAdmission({ TranscriptionBackend { error("This test does not transcribe") } }, canCapture)
+
     @Test fun missingUnknownAndLegacyModeAlwaysStayOffline() {
         listOf(null, "", "cloud", "unexpected", "OFFLINE").forEach {
             assertEquals(TranscriptionMode.OFFLINE, TranscriptionMode.fromStored(it))
@@ -43,8 +46,7 @@ class TranscriptionClientTest {
         val admission = CaptureAdmission(prepare = { selected }) { true }
         val reservation = requireNotNull(admission.acquire())
         selected = TranscriptionBackend { error("provider B must not receive the audio") }
-        val client = TranscriptionClient(admission, { error("must not re-read mode") },
-            TranscriptionRouter({ error("must not reselect offline") }, { error("must not reselect cloud") }))
+        val client = TranscriptionClient(admission)
         assertEquals("provider A", client.transcribe(byteArrayOf(1), reservation))
         assertNotNull(admission.acquire())
     }
@@ -78,7 +80,7 @@ class TranscriptionClientTest {
         try {
             val store = RecoveryStore(File(directory, "recoveries"))
             repeat(4) { store.stage("saved $it") }
-            val admission = CaptureAdmission { store.snapshot().canCapture }
+            val admission = idleAdmission { store.snapshot().canCapture }
             val overlay = requireNotNull(admission.acquire())
             assertNull("IME cannot race capture", admission.acquire())
             overlay.accept()
@@ -92,7 +94,7 @@ class TranscriptionClientTest {
     }
 
     @Test fun cancelledCaptureReleasesReservationAndOldTokenCannotReleaseNewOne() {
-        val admission = CaptureAdmission { true }
+        val admission = idleAdmission()
         val old = requireNotNull(admission.acquire())
         old.cancelCapture()
         val current = requireNotNull(admission.acquire())
@@ -108,9 +110,9 @@ class TranscriptionClientTest {
         val finish = CompletableDeferred<String>()
         val staged = CompletableDeferred<String>()
         val calls = AtomicInteger()
-        val admission = CaptureAdmission { true }
         val backend = TranscriptionBackend { started.complete(Unit); finish.await() }
-        val client = TranscriptionClient(admission, { TranscriptionMode.OFFLINE }, TranscriptionRouter({ backend }, { error("HTTP") }), app)
+        val admission = CaptureAdmission({ backend }) { true }
+        val client = TranscriptionClient(admission, app)
         var inserted = false
         try {
             val waiter = async {
@@ -135,11 +137,11 @@ class TranscriptionClientTest {
     }
 
     @Test fun activeWaiterResumesOnlyAfterStagingAndFailureReleasesSlot() = runBlocking {
-        val admission = CaptureAdmission { true }
         var fail = false
         var staged = false
         val backend = TranscriptionBackend { if (fail) error("worker stopped") else "complete" }
-        val client = TranscriptionClient(admission, { TranscriptionMode.OFFLINE }, TranscriptionRouter({ backend }, { error("HTTP") }))
+        val admission = CaptureAdmission({ backend }) { true }
+        val client = TranscriptionClient(admission)
         assertEquals("complete", client.transcribe(byteArrayOf()) { staged = true })
         assertTrue(staged)
         fail = true
@@ -148,9 +150,8 @@ class TranscriptionClientTest {
     }
 
     @Test fun interpretationShapesStagedTextAndFailureKeepsRawTranscript() = runBlocking {
-        val admission = CaptureAdmission { true }
-        val client = TranscriptionClient(admission, { TranscriptionMode.OFFLINE },
-            TranscriptionRouter({ TranscriptionBackend { "Yeah, sure." } }, { error("HTTP") }))
+        val admission = CaptureAdmission({ TranscriptionBackend { "Yeah, sure." } }) { true }
+        val client = TranscriptionClient(admission)
         var staged = ""
         assertEquals("yeah sure", client.transcribe(byteArrayOf(), interpret = { "yeah sure" }) { staged = it })
         assertEquals("yeah sure", staged)
@@ -160,28 +161,25 @@ class TranscriptionClientTest {
     }
 
     @Test fun callbackFailureStillReleasesAdmission() = runBlocking {
-        val admission = CaptureAdmission { true }
-        val client = TranscriptionClient(admission, { TranscriptionMode.OFFLINE },
-            TranscriptionRouter({ TranscriptionBackend { "text" } }, { error("HTTP") }))
+        val admission = CaptureAdmission({ TranscriptionBackend { "text" } }) { true }
+        val client = TranscriptionClient(admission)
         assertTrue(runCatching { client.transcribe(byteArrayOf()) { error("stage failed") } }.isFailure)
         requireNotNull(admission.acquire()).cancelCapture()
     }
 
     @Test fun stoppedApplicationScopeReleasesAcceptedReservation() = runBlocking {
         val app = CoroutineScope(SupervisorJob() + Dispatchers.Default).also { it.cancel() }
-        val admission = CaptureAdmission { true }
-        val client = TranscriptionClient(admission, { TranscriptionMode.OFFLINE },
-            TranscriptionRouter({ error("Stopped scope cannot enter native") }, { error("HTTP") }), app)
+        val admission = CaptureAdmission({ TranscriptionBackend { error("Stopped scope cannot enter native") } }) { true }
+        val client = TranscriptionClient(admission, app)
         assertTrue(runCatching { withTimeout(3000) { client.transcribe(byteArrayOf()) } }.isFailure)
         requireNotNull(admission.acquire()).cancelCapture()
     }
 
     @Test fun reusedReservationCannotReleaseOutstandingRequest() = runBlocking {
-        val admission = CaptureAdmission { true }
+        val admission = idleAdmission()
         val reservation = requireNotNull(admission.acquire())
         reservation.accept()
-        val client = TranscriptionClient(admission, { TranscriptionMode.OFFLINE },
-            TranscriptionRouter({ error("Duplicate must not reach native") }, { error("HTTP") }))
+        val client = TranscriptionClient(admission)
         assertTrue(runCatching { client.transcribe(byteArrayOf(), reservation) }.isFailure)
         assertNull(admission.acquire())
         reservation.complete()

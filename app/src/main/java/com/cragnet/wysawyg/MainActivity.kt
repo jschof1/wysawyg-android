@@ -32,6 +32,7 @@ class MainActivity : AppCompatActivity() {
         const val PREF_MODEL = "model"
         const val PREF_SYSTEM_PROMPT = "system_prompt"
         private const val PREF_SETUP_COLLAPSED = "home_setup_collapsed"
+        private const val PREF_NOTIFICATION_PROMPTED = "notification_prompted"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -78,9 +79,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Quietly bring the service back; missing Accessibility is shown as a setup step, not a redirect.
         if (getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean(PREF_OVERLAY_ENABLED, false) &&
-            hasPermissions() && TextInjectorService.instance != null && !OverlayService.isRunning()) startOverlayService()
+            hasPermissions() && PrivacyConsent.hasAccessibility(this) &&
+            TextInjectorService.instance != null && !OverlayService.isRunning()) startOverlayService()
+        requestNotificationPermissionIfNeeded()
         render()
     }
 
@@ -225,22 +227,35 @@ class MainActivity : AppCompatActivity() {
         }
         if (OverlayService.ensureRunning(this)) {
             WysawygLogger.i("Overlay service start requested")
-            if (Build.VERSION.SDK_INT >= 33 &&
-                ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), NOTIFICATION_REQUEST_CODE)
-            }
+            requestNotificationPermissionIfNeeded()
         } else {
             Toast.makeText(this, "Could not resume dictation. Check microphone and overlay permissions.", Toast.LENGTH_LONG).show()
         }
         render()
         // The service starts asynchronously; look again once it has had a moment.
-        window.decorView.postDelayed({ if (!isFinishing) render() }, 1000)
+        window.decorView.postDelayed({
+            if (!isFinishing && !isDestroyed) { requestNotificationPermissionIfNeeded(); render() }
+        }, 1000)
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < 33 || !OverlayService.isEnabled(this) ||
+            !PrivacyConsent.hasAccessibility(this) || !hasPermissions() || !OverlayService.isRunning() ||
+            !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
+        val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        if (prefs.getBoolean(PREF_NOTIFICATION_PROMPTED, false)) return
+        prefs.edit().putBoolean(PREF_NOTIFICATION_PROMPTED, true).apply()
+        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), NOTIFICATION_REQUEST_CODE)
     }
 
     private fun requestAccessibility() {
         PrivacyConsent.requestAccessibility(this) {
             if (TextInjectorService.instance == null) startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-            else { TextInjectorService.instance?.refreshEditor(); render() }
+            else {
+                TextInjectorService.instance?.refreshEditor()
+                if (OverlayService.isEnabled(this) && hasPermissions()) startOverlayService() else render()
+            }
         }
     }
 }

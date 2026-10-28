@@ -31,8 +31,9 @@ other controls on your behalf.
 The optional Speakeasy keyboard accesses the current editor through Android's
 input method interface. It can insert dictated text without Accessibility access.
 Android permissions for the microphone, overlays, and notifications are managed
-in your device settings. The ongoing notification lets you pause floating
-dictation. Starting the phone or resuming the service does not start a recording.
+in your device settings. When notifications are allowed, the ongoing notification
+lets you pause floating dictation. You can also pause it from Home. Starting the
+phone or resuming the service does not start a recording.
 
 Optional cloud transcription
 

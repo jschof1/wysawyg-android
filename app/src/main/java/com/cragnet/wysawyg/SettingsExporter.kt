@@ -78,8 +78,8 @@ class SettingsExporter(private val activity: AppCompatActivity, private val onIm
             WysawygLogger.i("Settings imported with on-device transcription selected")
             Toast.makeText(activity, "Settings imported", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
-            WysawygLogger.e("Failed to import settings", e)
-            Toast.makeText(activity, "Import failed: ${e.message}", Toast.LENGTH_LONG).show()
+            WysawygLogger.e("Failed to import settings (${e.javaClass.simpleName})")
+            Toast.makeText(activity, "Import failed. Choose a valid Speakeasy settings file.", Toast.LENGTH_LONG).show()
         }
     }
 }

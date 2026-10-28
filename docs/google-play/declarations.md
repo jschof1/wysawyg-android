@@ -62,8 +62,9 @@ password exclusion, and withdrawal. Do not submit a design mock-up or stale vide
 
 > Keeps a user-enabled floating dictation control available when an eligible text
 > field and keyboard are visible. The control works with the user's existing
-> keyboard. An ongoing notification exposes Pause, and pausing persists across
-> restarts. The service remains idle until the user explicitly starts recording.
+> keyboard. An ongoing notification exposes Pause when notifications are allowed;
+> Home also offers Pause. Pausing persists across restarts. The service remains
+> idle until the user explicitly starts recording.
 
 Supply Google's requested video/evidence and check the relevant Console use-case
 choices. Google must approve the special-use case; the manifest is not approval.

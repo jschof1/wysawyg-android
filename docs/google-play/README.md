@@ -85,6 +85,18 @@ or discard Jack's current app data.
 
 ## Register the app and complete the listing
 
+Before public distribution, confirm the right to redistribute the original app.
+This fork contains code from `cragnet/wysawyg-android`; neither this checkout nor
+the upstream repository has a root app licence recorded. Permission has not been
+verified. The speech-model and font licences cover their own assets, not the
+original application. Keep the author's permission or an applicable licence with
+the release record. See [GitHub's licensing guidance](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository).
+
+The current package ID preserves the existing local app during preparation. It
+does not solve the signer mismatch for a Play install. Decide the final public
+package ID and confirm its availability before the first Play upload; the current
+`com.cragnet.wysawyg` ID names the upstream author.
+
 1. Create and verify the Play developer account. Choose the account type that
    matches the real publisher. **Aspect Studios** is the proposed display name;
    verify the account's legal identity and public details during registration.
@@ -92,7 +104,10 @@ or discard Jack's current app data.
    `com.cragnet.wysawyg` is available before the first upload. The package name
    becomes permanent when registered with Play.
 3. Use `info@aspectstudios.net` for public support. Confirm that this mailbox is
-   monitored before submission.
+   monitored before submission. A 28 October DNS check found no MX record for
+   `aspectstudios.net`; the existing Aspect Studio site uses `aspectstudio.net`,
+   which has Google mail configured. The intended spelling and mailbox are still
+   awaiting Jack's confirmation. No mail or DNS configuration has been changed.
 4. Paste [the listing copy](store-listing.md) and
    [the declaration drafts](declarations.md) into the matching Console forms.
 5. Use the public
@@ -118,6 +133,7 @@ structure alone does not prove runtime compatibility.
 | --- | --- |
 | Fresh install | Home loads; on-device mode is the default; privacy opens from Home and More settings |
 | Accessibility decline or Back | No consent saved; no editor reads, overlay, or insertion |
+| Return to Home after declining | No repeated or stacked disclosure; the setup row remains available |
 | Enable service from Android settings first | Service remains inert until the separate in-app disclosure is accepted |
 | Accessibility accept | System settings open after acceptance; Gboard remains selected; floating mic appears only with an eligible field and keyboard |
 | Real speech | Start, Stop, and insertion work in the scratch editor and a real app; Cancel sends and inserts nothing |
@@ -128,6 +144,7 @@ structure alone does not prove runtime compatibility.
 | Withdraw consent | Accessibility stops reading and inserting; future cloud requests are blocked |
 | Pause, reboot, update, process restart | Pause persists; an enabled service may resume idle; microphone never starts automatically |
 | Background service start on Android 15/16 | No crash or repeated startup failure; the mic becomes available through a permitted start path |
+| First run on Android 13+ | Notification permission is offered once after service startup; allow shows Pause in the shade, decline leaves Pause available on Home |
 | System bars, keyboard, rotation, large text | All controls remain visible and usable in light and dark themes |
 | Recovery | Saved text survives process death; Copy and Insert work; discard/expiry and storage failure are handled visibly |
 | Optional keyboard | On-device recording and insertion work without Accessibility consent |
@@ -154,5 +171,6 @@ this requirement. Check the Console for requirements for the chosen account.
 - [User data and privacy policy](https://support.google.com/googleplay/android-developer/answer/10144311)
 - [Data safety](https://support.google.com/googleplay/android-developer/answer/10787469)
 - [App size limits](https://support.google.com/googleplay/android-developer/answer/9859372)
+- [Repository licensing](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository)
 - [Listing artwork requirements](https://support.google.com/googleplay/android-developer/answer/9866151)
 - [16 KB page size support](https://developer.android.com/guide/practices/page-sizes)

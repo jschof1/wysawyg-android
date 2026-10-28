@@ -10,17 +10,13 @@ object Transcriptions {
         val recovery = Recoveries.get(app)
         val offline by lazy { PhononClient(app) }
         val cloud by lazy { OllamaClient(app) }
-        fun prepare(): TranscriptionBackend {
-            val mode = effectiveMode(app)
-            if (mode == TranscriptionMode.OFFLINE) return offline
+        val router = TranscriptionRouter({ offline }, {
             val configuration = cloud.configuration()
             check(PrivacyConsent.hasCloud(app, configuration.destination)) { app.getString(R.string.cloud_setup_needed) }
-            return TranscriptionBackend { audio -> cloud.transcribe(audio, configuration) }
-        }
+            TranscriptionBackend { audio -> cloud.transcribe(audio, configuration) }
+        })
         TranscriptionClient(
-            CaptureAdmission(prepare = ::prepare) { recovery.snapshot().canCapture },
-            { effectiveMode(app) },
-            TranscriptionRouter({ offline }, { TranscriptionBackend { cloud.transcribe(it) } })
+            CaptureAdmission(prepare = { router.select(effectiveMode(app)) }) { recovery.snapshot().canCapture }
         ).also { client = it }
     }
 

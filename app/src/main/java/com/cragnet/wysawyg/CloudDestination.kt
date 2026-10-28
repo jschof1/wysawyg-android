@@ -2,6 +2,7 @@ package com.cragnet.wysawyg
 
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
+@ConsistentCopyVisibility
 data class CloudDestination private constructor(val url: String, val origin: String) {
     companion object {
         fun parse(value: String, allowHttp: Boolean = false): CloudDestination {

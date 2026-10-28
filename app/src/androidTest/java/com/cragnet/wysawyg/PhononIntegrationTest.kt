@@ -51,8 +51,10 @@ class PhononIntegrationTest {
         val originalRecoveries = recoveryBytes()
         val testFile = File.createTempFile("phonon-test-", ".recovery", context.cacheDir).apply { delete() }
         val store = RecoveryStore(testFile)
-        val client = TranscriptionClient(CaptureAdmission { store.snapshot().canCapture }, { TranscriptionMode.OFFLINE },
-            TranscriptionRouter({ PhononClient(context) }, { error("Offline must not construct HTTP") }))
+        val router = TranscriptionRouter({ PhononClient(context) }, { error("Offline must not construct HTTP") })
+        val client = TranscriptionClient(CaptureAdmission({ router.select(TranscriptionMode.OFFLINE) }) {
+            store.snapshot().canCapture
+        })
         try {
             val text = withTimeout(120_000) { client.transcribe(wav) { if (it.isNotBlank()) store.stage(it) } }
             verifyExpected(text)
@@ -72,11 +74,11 @@ class PhononIntegrationTest {
         val entered = CompletableDeferred<Unit>()
         val staged = CompletableDeferred<String>()
         val count = AtomicInteger()
-        val admission = CaptureAdmission { true }
         val native = PhononClient(context)
-        val client = TranscriptionClient(admission, { TranscriptionMode.OFFLINE }, TranscriptionRouter({
+        val admission = CaptureAdmission({
             TranscriptionBackend { entered.complete(Unit); native.transcribe(it) }
-        }, { error("HTTP") }), app)
+        }) { true }
+        val client = TranscriptionClient(admission, app)
         var inserted = false
         try {
             val waiter = async {

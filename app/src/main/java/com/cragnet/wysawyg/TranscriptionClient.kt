@@ -36,15 +36,15 @@ class TranscriptionRouter(
 /** One app-wide reservation from before microphone acquisition through staging/failure.
  * This also prevents two editors competing for the microphone or the fifth recovery slot. */
 class CaptureAdmission(
-    private val prepare: (() -> TranscriptionBackend)? = null,
+    private val prepare: () -> TranscriptionBackend,
     private val canCapture: () -> Boolean
 ) {
     private var current: Reservation? = null
     @Synchronized fun acquire(): Reservation? {
         if (current != null || !canCapture()) return null
-        return Reservation(prepare?.invoke()).also { current = it }
+        return Reservation(prepare()).also { current = it }
     }
-    inner class Reservation internal constructor(internal val backend: TranscriptionBackend?) {
+    inner class Reservation internal constructor(internal val backend: TranscriptionBackend) {
         private var accepted = false
         fun accept() = synchronized(this@CaptureAdmission) {
             check(current === this && !accepted) { "Capture reservation expired" }
@@ -61,8 +61,6 @@ class CaptureAdmission(
 
 class TranscriptionClient(
     val admission: CaptureAdmission,
-    private val mode: () -> TranscriptionMode,
-    private val router: TranscriptionRouter,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 ) {
     private val serial = Mutex()
@@ -82,7 +80,7 @@ class TranscriptionClient(
             return@suspendCancellableCoroutine
         }
         try {
-            val backend = reservation.backend ?: router.select(mode())
+            val backend = reservation.backend
             val work = scope.launch {
                 try {
                     val raw = serial.withLock { backend.transcribe(wavBytes) }
