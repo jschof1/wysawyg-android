@@ -167,6 +167,9 @@ requires at least 12 testers opted into a closed test continuously for 14 days,
 then an application for production access. Recruit real target users, collect
 feedback, fix issues, and keep the evidence. An internal test does not replace
 this requirement. Check the Console for requirements for the chosen account.
+Use the [closed-test checklist and feedback record](closed-testing.md) to start
+the test and retain evidence for the production-access application. No test
+period or production eligibility is claimed until the Console confirms it.
 
 ## References
 

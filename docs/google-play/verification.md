@@ -1,12 +1,11 @@
 # Release preparation verification
 
-The first signed Play build passed. A replacement is required to bundle the new
-public publisher name **Aspect Studio Software**, confirmed after that build.
-The results below describe the signed build before this policy-only update.
+The signed Play build includes the confirmed public publisher name
+**Aspect Studio Software** and passed the automated release checks.
 
 The reviewed Android 16 preparation build is
-[`7bca495`](https://github.com/jschof1/wysawyg-android/commit/7bca4951136e50c7af1f2aa1781324d8c034457b),
-verified in [GitHub Actions run 40736863224](https://github.com/jschof1/wysawyg-android/actions/runs/40736863224)
+[`0c9c623`](https://github.com/jschof1/wysawyg-android/commit/0c9c62337cf02ae86c2759224f4d0fbc4d5cef5c),
+verified in [GitHub Actions run 40739284076](https://github.com/jschof1/wysawyg-android/actions/runs/40739284076)
 on 28 October 2026.
 
 | Check | Result |
@@ -20,24 +19,25 @@ on 28 October 2026.
 | Bundletool validation | Passed |
 | Target, backup and network flags in actual AAB | API 36, backup disabled, cleartext disabled, not debuggable |
 | Packaged native libraries | All four ARM64 ELF libraries have 16 KB alignment; bundle requests 16 KB APK zip alignment |
-| Estimated compressed download | 202,222,584–202,274,018 bytes; below the current 500 MB base-module limit |
+| Estimated compressed download | 202,222,589–202,274,013 bytes; below the current 500 MB base-module limit |
 | Required model and policy assets | Present in the AAB; policy exactly matches the built source |
 | Release package | `net.aspectstudio.speakeasy` |
 | Release signing | Signature verified; signed with the recorded upload certificate, not a debug certificate |
 
 Download the
-[signed AAB](https://github.com/jschof1/wysawyg-android/actions/runs/40736863224/artifacts/12838245752),
-[verification reports](https://github.com/jschof1/wysawyg-android/actions/runs/40736863224/artifacts/12837353146),
-[device-test APK](https://github.com/jschof1/wysawyg-android/actions/runs/40736863224/artifacts/12838595914),
-or [submission packet](https://github.com/jschof1/wysawyg-android/actions/runs/40736863224/artifacts/12838011475).
+[signed AAB](https://github.com/jschof1/wysawyg-android/actions/runs/40739284076/artifacts/12837868981),
+[verification reports](https://github.com/jschof1/wysawyg-android/actions/runs/40739284076/artifacts/12838841775),
+[device-test APK](https://github.com/jschof1/wysawyg-android/actions/runs/40739284076/artifacts/12839591090),
+or [submission packet](https://github.com/jschof1/wysawyg-android/actions/runs/40739284076/artifacts/12839840265).
 GitHub artifacts expire under the repository's retention settings; they are not
-permanent release storage. Use the replacement signed build with the confirmed
-publisher before uploading to Play.
+permanent release storage. Preserve this signed build and its reports before
+uploading to Play.
 
 The public privacy policy returned HTTPS 200 and matched the source file exactly:
-SHA-256 `af7bd6e9584f29a4fea4009e2b8bac1c5ed43e360cd4713988179e9e34d3c849`.
-That policy predates the new public developer name. Recheck the public URL and
-replacement AAB after the publisher update is pushed.
+SHA-256 `540e279ff151c8ed9396815a46869278d836cc2ad155066ee6afd79c994a83dc`.
+The actual AAB and CI submission packet contain the same policy. The signature
+uses the [recorded public upload certificate](upload-certificate.pem), SHA-256
+`e49acf43a6592bc45dc2aceb5679cc56fa3f74fc24eba13408af9b78db35873e`.
 The prepared store icon and feature graphic were inspected visually and checked
 for the required dimensions and colour formats.
 
@@ -61,8 +61,11 @@ confirmed that he has the original author's permission to redistribute this fork
 [the decision trail](decisions.tsv).
 
 The regular browser is signed into the intended owner's Google account.
-Remaining actions are account registration and identity verification, verification
-of the replacement signed bundle, first upload of the chosen public package ID,
-device acceptance and media capture, Console declarations, and the individual
-account's closed test and production-access application. Follow the
+Registration is waiting at the individual payments-profile step. Google's
+selector stayed loading after a reload and retry; direct completion was requested
+from Jack. No profile was linked, terms accepted, registration fee paid, or app
+uploaded. Remaining actions are account registration and identity verification,
+first upload of the chosen public package ID, device acceptance and media capture,
+Console declarations, and the individual account's closed test and
+production-access application. Follow the
 [release guide](README.md) before submission.
