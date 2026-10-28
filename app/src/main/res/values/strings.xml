@@ -116,4 +116,10 @@
     <string name="more_licences">Licences</string>
     <string name="more_licences_help">Speech model, Smart cleanup model and fonts</string>
     <string name="more_logs_clear_confirm">Clear the diagnostic log?</string>
+    <string name="recording_compact_description">Recording. Drag to move.</string>
+    <string name="more_group_microphone">Floating microphone</string>
+    <string name="more_indicator">Recording indicator</string>
+    <string name="more_indicator_help">How much the microphone shows while you speak</string>
+    <string name="indicator_sheet_title">Recording indicator</string>
+    <string name="indicator_sheet_subtitle">Choose how the microphone shows that it is listening.</string>
 </resources>

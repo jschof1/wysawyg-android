@@ -128,6 +128,7 @@ data class StyleSettings(
         fun valid(key: String, value: Any?): Boolean = when (key) {
             in BOOLEAN_KEYS -> value is Boolean
             in STYLE_KEYS -> value is String && WritingStyle.fromKey(value) != null
+            RecordingIndicator.KEY -> value is String && RecordingIndicator.fromKey(value) != null
             else -> false
         }
 

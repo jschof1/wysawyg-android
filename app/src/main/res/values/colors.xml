@@ -20,6 +20,8 @@
     <color name="se_panel_secondary">#BBC8BF</color>
     <color name="se_panel_outline">#7F998B</color>
     <color name="se_mint">#A7E6C1</color>
+    <!-- The universal "recording" signal, used only on the floating microphone. -->
+    <color name="se_rec">#F2555A</color>
     <color name="se_brass_on_panel">#DEC58B</color>
     <color name="se_on_mint">#10251A</color>
     <color name="se_track">#354B3E</color>

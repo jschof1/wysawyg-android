@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content" android:layout_height="32dp" android:layout_gravity="center"
+    android:background="@drawable/se_compact_pill" android:gravity="center_vertical" android:orientation="horizontal"
+    android:paddingStart="10dp" android:paddingEnd="4dp">
+    <View android:layout_width="8dp" android:layout_height="8dp" android:background="@drawable/se_rec_dot_plain" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="6dp"
+        android:fontFamily="@font/manrope_bold" android:text="00:12" android:textColor="@color/se_panel_text" android:textSize="11sp" />
+    <ImageView android:layout_width="24dp" android:layout_height="24dp" android:layout_marginStart="8dp"
+        android:background="@drawable/se_stop_circle" android:padding="7dp" android:src="@drawable/ic_dictation_stop"
+        app:tint="@color/se_on_mint" />
+</LinearLayout>

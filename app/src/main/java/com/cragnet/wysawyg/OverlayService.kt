@@ -67,6 +67,9 @@ class OverlayService : Service() {
     private var startedAt = 0L
     private var operation: Job? = null
     private var meter: Job? = null
+    /** Chosen in settings; read when each recording starts. */
+    private var indicator = RecordingIndicator.DETAILED
+    private var pulse: android.animation.ObjectAnimator? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     companion object {
@@ -189,9 +192,22 @@ class OverlayService : Service() {
             view<ImageButton>(R.id.dictationButton)?.apply {
                 setOnClickListener {
                     it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    if (state == State.IDLE) startRecording()
+                    when {
+                        state == State.IDLE -> startRecording()
+                        state == State.RECORDING && indicator == RecordingIndicator.MINIMAL -> stopAndTranscribe()
+                    }
                 }
-                makeDraggable(this) { state == State.IDLE && !recoveryVisible }
+                // In the minimal style the bubble is the stop button: hold to cancel, as in the panel.
+                setOnLongClickListener {
+                    if (state == State.RECORDING && indicator == RecordingIndicator.MINIMAL) {
+                        it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        cancelRecording()
+                        true
+                    } else false
+                }
+                makeDraggable(this) {
+                    (state == State.IDLE || state == State.RECORDING && indicator == RecordingIndicator.MINIMAL) && !recoveryVisible
+                }
             }
             view<Button>(R.id.collapseRecovery)?.setOnClickListener { recoveryCollapsed = true; renderState() }
             view<Button>(R.id.showRecovery)?.setOnClickListener { recoveryCollapsed = false; renderState() }
@@ -200,6 +216,11 @@ class OverlayService : Service() {
                 setOnLongClickListener { if (state == State.RECORDING) cancelRecording(); true }
             }
             view<Button>(R.id.cancelRecording)?.setOnClickListener { cancelRecording() }
+            view<View>(R.id.compactStop)?.apply {
+                setOnClickListener { stopAndTranscribe() }
+                setOnLongClickListener { if (state == State.RECORDING) cancelRecording(); true }
+            }
+            view<View>(R.id.compactPanel)?.let { makeDraggable(it) }
             view<View>(R.id.recordingGrip)?.let { makeDraggable(it) }
             view<View>(R.id.recoveryGrip)?.let { makeDraggable(it) }
             view<Button>(R.id.copyRecovery)?.setOnClickListener {
@@ -233,6 +254,8 @@ class OverlayService : Service() {
         val statusBar = if (statusBarId != 0) resources.getDimensionPixelSize(statusBarId) else dp(24)
         val available = (keyboardBounds.top - statusBar - dp(12)).coerceAtLeast(1)
         val width = when {
+            state == State.RECORDING && indicator == RecordingIndicator.MINIMAL -> 64
+            state == State.RECORDING && indicator == RecordingIndicator.COMPACT -> 236
             state == State.RECORDING || recoveryVisible -> 320
             view<View>(R.id.showRecovery)?.visibility == View.VISIBLE -> 256
             else -> 64 // 56dp bubble plus its 4dp padding on each side
@@ -266,13 +289,29 @@ class OverlayService : Service() {
         val item = selectedRecovery()
         val hasRecovery = item != null || snapshot.unreadable || snapshot.writeFailed
         recoveryVisible = state == State.IDLE && hasRecovery && !recoveryCollapsed
-        view<View>(R.id.idlePanel)?.visibility = if (state == State.RECORDING || recoveryVisible) View.GONE else View.VISIBLE
-        view<View>(R.id.recordingPanel)?.visibility = if (state == State.RECORDING) View.VISIBLE else View.GONE
+        val recording = state == State.RECORDING
+        val minimal = recording && indicator == RecordingIndicator.MINIMAL
+        view<View>(R.id.idlePanel)?.visibility = if ((recording && !minimal) || recoveryVisible) View.GONE else View.VISIBLE
+        view<View>(R.id.recordingPanel)?.visibility = if (recording && indicator == RecordingIndicator.DETAILED) View.VISIBLE else View.GONE
+        view<View>(R.id.compactPanel)?.visibility = if (recording && indicator == RecordingIndicator.COMPACT) View.VISIBLE else View.GONE
+        view<View>(R.id.recordingRing)?.visibility = if (minimal) View.VISIBLE else View.INVISIBLE
+        view<View>(R.id.recordingDot)?.visibility = if (minimal) View.VISIBLE else View.GONE
+        renderPulse(recording)
         view<View>(R.id.recoveryPanel)?.visibility = if (recoveryVisible) View.VISIBLE else View.GONE
         view<ImageButton>(R.id.dictationButton)?.apply {
-            imageAlpha = if (state == State.IDLE) 255 else 0
-            isEnabled = state == State.IDLE && snapshot.canCapture && !recoveryAction
-            contentDescription = if (state == State.IDLE) "Start dictation" else if (state == State.STARTING) "Preparing microphone" else "Transcribing"
+            imageAlpha = if (state == State.IDLE || minimal) 255 else 0
+            isEnabled = (state == State.IDLE && snapshot.canCapture && !recoveryAction) || minimal
+            setImageResource(if (minimal) R.drawable.ic_dictation_stop else R.drawable.se_mic)
+            setBackgroundResource(if (minimal) R.drawable.dictation_circle_recording else R.drawable.dictation_circle)
+            imageTintList = android.content.res.ColorStateList.valueOf(getColor(if (minimal) R.color.se_mint else R.color.se_on_mint))
+            scaleX = if (minimal) 0.72f else 1f
+            scaleY = scaleX
+            contentDescription = when {
+                minimal -> getString(R.string.finish_dictation)
+                state == State.IDLE -> "Start dictation"
+                state == State.STARTING -> "Preparing microphone"
+                else -> "Transcribing"
+            }
         }
         view<Button>(R.id.showRecovery)?.apply {
             visibility = if (state == State.IDLE && hasRecovery && recoveryCollapsed) View.VISIBLE else View.GONE
@@ -332,6 +371,8 @@ class OverlayService : Service() {
                 showForeground(recording = true)
                 audioRecorder.start()
                 startedAt = SystemClock.elapsedRealtime()
+                indicator = RecordingIndicator.load(getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE))
+                view<TextView>(R.id.compactTimer)?.text = getString(R.string.recording_zero)
                 state = State.RECORDING
                 renderState()
                 meter = scope.launch {
@@ -348,7 +389,15 @@ class OverlayService : Service() {
                         }
                         val seconds = (SystemClock.elapsedRealtime() - startedAt) / 1000
                         view<TextView>(R.id.recordingTimer)?.text = String.format(Locale.ROOT, "%02d:%02d", seconds / 60, seconds % 60)
-                        view<ProgressBar>(R.id.recordingLevel)?.progress = (audioRecorder.level * 100).toInt()
+                        val level = audioRecorder.level
+                        view<ProgressBar>(R.id.recordingLevel)?.progress = (level * 100).toInt()
+                        view<TextView>(R.id.compactTimer)?.text = String.format(Locale.ROOT, "%02d:%02d", seconds / 60, seconds % 60)
+                        view<ProgressBar>(R.id.compactLevel)?.progress = (level * 100).toInt()
+                        // The ring breathes with the voice, inside the bubble's own bounds.
+                        view<View>(R.id.recordingRing)?.apply {
+                            val scale = 0.9f + 0.1f * level.coerceIn(0f, 1f)
+                            animate().scaleX(scale).scaleY(scale).alpha(0.6f + 0.4f * level).setDuration(90).start()
+                        }
                         delay(100)
                     }
                 }
@@ -372,6 +421,25 @@ class OverlayService : Service() {
         meter?.cancel()
         meter = null
         view<ProgressBar>(R.id.recordingLevel)?.progress = 0
+        view<ProgressBar>(R.id.compactLevel)?.progress = 0
+    }
+
+    /** A slow blink on the red recording dots; follows the system animation setting. */
+    private fun renderPulse(recording: Boolean) {
+        if (!recording) {
+            pulse?.cancel()
+            pulse = null
+            listOf(R.id.recordingDot, R.id.compactDot).forEach { view<View>(it)?.alpha = 1f }
+            return
+        }
+        if (pulse != null) return
+        val dot = view<View>(if (indicator == RecordingIndicator.COMPACT) R.id.compactDot else R.id.recordingDot) ?: return
+        pulse = android.animation.ObjectAnimator.ofFloat(dot, View.ALPHA, 1f, 0.25f).apply {
+            duration = 700
+            repeatMode = android.animation.ValueAnimator.REVERSE
+            repeatCount = android.animation.ValueAnimator.INFINITE
+            start()
+        }
     }
 
     private fun cancelRecording() {
@@ -535,6 +603,7 @@ class OverlayService : Service() {
 
     override fun onDestroy() {
         destroyed = true
+        pulse?.cancel()
         instance = null
         stopMeter()
         operation?.cancel()

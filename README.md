@@ -7,7 +7,10 @@ Speakeasy (formerly WYSAWYG) is a voice-to-text app for Android. Its floating mi
 The Speakeasy redesign: a forest-and-mint theme in light and
 dark, the Manrope typeface, a home screen showing dictation status and setup at a glance, a
 Writing style screen with live previews, More settings for keyboard, transcription, backup and
-logs, and a restyled floating microphone. The internal application ID is unchanged, so
+logs, and a restyled floating microphone. More settings → Recording indicator chooses how much
+the microphone shows while recording: Detailed (panel with timer, level, Stop and Cancel),
+Compact (a small pill with a red dot, timer and stop) or Minimal (the bubble itself becomes a
+stop button with a voice-level ring and red dot; tap to stop, hold to cancel). The internal application ID is unchanged, so
 updating keeps settings, saved transcripts and permissions. Design record:
 [docs/design/speakeasy](docs/design/speakeasy/spec.md).
 

@@ -1,0 +1,5 @@
+<!-- A tiny "keyboard area" behind each preview so the overlay reads in context. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@color/se_raised" />
+    <corners android:radius="12dp" />
+</shape>

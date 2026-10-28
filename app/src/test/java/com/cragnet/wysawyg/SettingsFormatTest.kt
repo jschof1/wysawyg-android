@@ -54,4 +54,11 @@ class SettingsFormatTest {
             StyleSettings.KEY_STYLE_PREFIX + "personal" to true, StyleSettings.KEY_STYLE_PREFIX + "email" to "shouty"))
         assertEquals(mapOf(TranscriptionMode.KEY to "OFFLINE"), imported)
     }
+
+    @Test fun recordingIndicatorRoundTripsAndRejectsUnknownValues() {
+        val stored = mapOf(TranscriptionMode.KEY to "OFFLINE", RecordingIndicator.KEY to "minimal")
+        assertEquals(stored, SettingsFormat.import(SettingsFormat.export(stored)))
+        assertEquals(mapOf(TranscriptionMode.KEY to "OFFLINE"),
+            SettingsFormat.import(mapOf(SettingsFormat.VERSION_KEY to 2, RecordingIndicator.KEY to "flashing")))
+    }
 }

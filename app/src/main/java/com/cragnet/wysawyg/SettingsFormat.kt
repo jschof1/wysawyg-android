@@ -6,7 +6,7 @@ object SettingsFormat {
     const val VERSION = 2
     val credentialKeys = listOf("alarma_url", "api_key", "model", "system_prompt")
     /** Writing-style choices travel only when set, as String or Boolean like their preferences. */
-    private val styleKeys get() = StyleSettings.BOOLEAN_KEYS + StyleSettings.STYLE_KEYS
+    private val styleKeys get() = StyleSettings.BOOLEAN_KEYS + StyleSettings.STYLE_KEYS + RecordingIndicator.KEY
     fun export(values: Map<String, *>): Map<String, Any> = buildMap {
         put(VERSION_KEY, VERSION)
         put(TranscriptionMode.KEY, TranscriptionMode.fromStored(values[TranscriptionMode.KEY] as? String).name)

@@ -71,6 +71,49 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Floating microphone -->
+            <com.google.android.material.card.MaterialCardView style="@style/SE.Card">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/SE.GroupLabel"
+                        android:accessibilityHeading="true"
+                        android:text="@string/more_group_microphone" />
+
+                    <LinearLayout
+                        android:id="@+id/recordingIndicatorButton"
+                        style="@style/SE.Row"
+                        android:minHeight="72dp">
+
+                        <ImageView
+                            style="@style/SE.RowIcon"
+                            android:src="@drawable/se_mic" />
+
+                        <LinearLayout style="@style/SE.RowText">
+
+                            <TextView
+                                style="@style/SE.RowTitle"
+                                android:text="@string/more_indicator" />
+
+                            <TextView
+                                style="@style/SE.Meta"
+                                android:text="@string/more_indicator_help" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/recordingIndicatorValue"
+                            style="@style/SE.RowValue"
+                            android:textSize="14sp" />
+
+                        <ImageView style="@style/SE.Chevron" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Transcription -->
             <com.google.android.material.card.MaterialCardView style="@style/SE.Card">
 

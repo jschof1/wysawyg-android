@@ -3,13 +3,18 @@ package com.cragnet.wysawyg
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
+import android.view.LayoutInflater
 import android.view.View
+import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.RadioButton
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /** Keyboard, transcription engine, settings backup, licences and logs. */
@@ -43,6 +48,7 @@ class MoreSettingsActivity : AppCompatActivity() {
         urlInput.setOnFocusChangeListener { _, hasFocus ->
             if (!hasFocus && modelInput.text.isNullOrBlank()) modelInput.setText(defaultModel(urlInput.text.toString()))
         }
+        findViewById<View>(R.id.recordingIndicatorButton).setOnClickListener { chooseIndicator() }
         findViewById<View>(R.id.enableKeyboardButton).setOnClickListener {
             startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
         }
@@ -78,6 +84,41 @@ class MoreSettingsActivity : AppCompatActivity() {
         super.onResume()
         val enabled = getSystemService(InputMethodManager::class.java).enabledInputMethodList.any { it.packageName == packageName }
         findViewById<TextView>(R.id.keyboardStatus).setText(if (enabled) R.string.more_keyboard_enabled else R.string.more_keyboard_off)
+        renderIndicator()
+    }
+
+    private fun renderIndicator() {
+        findViewById<TextView>(R.id.recordingIndicatorValue).text =
+            RecordingIndicator.load(getSharedPreferences(MainActivity.PREFS_NAME, MODE_PRIVATE)).label
+    }
+
+    /** Each style is shown as a miniature of how it looks over the keyboard; picking one saves it. */
+    private fun chooseIndicator() {
+        val prefs = getSharedPreferences(MainActivity.PREFS_NAME, MODE_PRIVATE)
+        val current = RecordingIndicator.load(prefs)
+        val sheet = BottomSheetDialog(this)
+        val content = LayoutInflater.from(this).inflate(R.layout.sheet_recording_indicator, null)
+        val options = content.findViewById<LinearLayout>(R.id.indicatorOptions)
+        val previews = mapOf(RecordingIndicator.DETAILED to R.layout.preview_indicator_detailed,
+            RecordingIndicator.COMPACT to R.layout.preview_indicator_compact,
+            RecordingIndicator.MINIMAL to R.layout.preview_indicator_minimal)
+        RecordingIndicator.values().forEach { indicator ->
+            val card = LayoutInflater.from(this).inflate(R.layout.item_indicator_option, options, false) as MaterialCardView
+            LayoutInflater.from(this).inflate(previews.getValue(indicator), card.findViewById<FrameLayout>(R.id.optionPreview), true)
+            card.findViewById<TextView>(R.id.optionTitle).text = indicator.label
+            card.findViewById<TextView>(R.id.optionDescription).text = indicator.description
+            card.isChecked = indicator == current
+            card.findViewById<View>(R.id.optionCheck).visibility = if (indicator == current) View.VISIBLE else View.INVISIBLE
+            card.contentDescription = "${indicator.label}. ${indicator.description}"
+            card.setOnClickListener {
+                prefs.edit().putString(RecordingIndicator.KEY, indicator.key).apply()
+                renderIndicator()
+                sheet.dismiss()
+            }
+            options.addView(card)
+        }
+        sheet.setContentView(content)
+        sheet.show()
     }
 
     override fun onPause() {
