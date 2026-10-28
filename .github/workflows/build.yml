@@ -136,3 +136,10 @@ jobs:
           name: wysawyg-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Upload device-test APK
+        uses: actions/upload-artifact@v5
+        with:
+          name: speakeasy-device-test-apk
+          path: app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          if-no-files-found: error

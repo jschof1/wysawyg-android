@@ -10,7 +10,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-/** Unknown, fresh and legacy settings always opt into local processing. */
 enum class TranscriptionMode {
     OFFLINE, CLOUD;
     companion object {

@@ -8,6 +8,9 @@ submission. There is no Play developer account yet. This repository prepares the
 app and its submission packet. A build passing here does not mean Google has
 approved the app or granted production access.
 
+See the [verification record](verification.md) for the built commit, downloadable
+artifacts, test results and remaining acceptance checks.
+
 ## Build and check the bundle
 
 The **Verify Android release** GitHub workflow runs on pushes to `master` and
@@ -19,6 +22,13 @@ the AAB and reports the generated compressed download size.
 Download the `speakeasy-release-unsigned` and `release-verification` artifacts
 from the matching workflow run. An unsigned AAB is for verification and cannot
 be uploaded to Play.
+
+The same run provides `wysawyg-debug-apk` and `speakeasy-device-test-apk` for an
+isolated test device. The device-test APK is built in CI; it has not been executed
+there. `PrivacyConsentTest` uses synthetic audio and local HTTP servers, temporarily
+changes preferences and restores them. Pause floating dictation before running it.
+`RecoveryControlsTest` additionally requires an empty recovery store, microphone
+and overlay permissions, and prior acceptance of the in-app Accessibility disclosure.
 
 To build locally, use JDK 17 or 21, Android SDK 36, SDK Build Tools 35.0.0, and
 the native/model setup in [the offline build guide](../offline-transcription.md).

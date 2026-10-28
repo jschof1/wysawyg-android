@@ -43,7 +43,8 @@ def main():
         return subprocess.check_output(["java", "-jar", args.bundletool, *command,
                                         f"--bundle={args.bundle}"], text=True)
 
-    print(bundletool("validate").strip())
+    bundletool("validate")
+    print("PASS bundletool validates the release structure")
     manifest = ET.fromstring(bundletool("dump", "manifest", "--module=base"))
     sdk = manifest.find("uses-sdk")
     app = manifest.find("application")
