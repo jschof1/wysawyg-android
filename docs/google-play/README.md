@@ -4,10 +4,13 @@ Speakeasy 1.7.0 uses Play package `net.aspectstudio.speakeasy`, version code 12,
 minimum Android 8/API 26, and target Android 16/API 36. It supports ARM64 phones.
 Debug builds retain `com.cragnet.wysawyg` for the existing sideloaded app.
 
-Jack owns the developer account, final declarations, tester recruitment, and
-submission. There is no Play developer account yet. This repository prepares the
-app and its submission packet. A build passing here does not mean Google has
-approved the app or granted production access.
+Jack owns the developer account and has authorised publication. Account
+registration is in progress under his Google account. He confirmed that he is a
+sole trader, so registration is using the individual route. The public developer
+name is **Aspect Studio Software**, which passed Google's name check. Registration,
+identity verification, the required test track and review are still outstanding.
+A build passing here does not mean Google has approved the app or granted
+production access.
 
 See the [verification record](verification.md) for the built commit, downloadable
 artifacts, test results and remaining acceptance checks.
@@ -100,9 +103,11 @@ The Play package ID is `net.aspectstudio.speakeasy`, under Aspect Studio's domai
 Confirm its availability at the first Play upload. The Kotlin/native namespace
 and debug package remain `com.cragnet.wysawyg`.
 
-1. Create and verify the Play developer account. Use **Aspect Studio** as the
-   public publisher name confirmed by Jack. Choose the account type that matches
-   the real publisher and verify its legal identity during registration.
+1. Finish the individual Play developer account registration and identity
+   verification. Use **Aspect Studio Software** as the public developer name,
+   confirmed by Jack after Google rejected **Aspect Studio** as already registered.
+   The public name can differ from the verified individual's legal name. Jack
+   must approve the registration agreement and fee before those steps are completed.
 2. Create a free productivity app named **Speakeasy**. Confirm package
    `net.aspectstudio.speakeasy` is available before the first upload. The package name
    becomes permanent when registered with Play.

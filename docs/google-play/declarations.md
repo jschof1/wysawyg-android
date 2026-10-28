@@ -102,5 +102,5 @@ that provider. Do not promise that uninstalling deletes remote provider data.
 Privacy policy:
 https://raw.githubusercontent.com/jschof1/wysawyg-android/master/app/src/main/assets/privacy-policy.txt
 
-Publisher: Aspect Studio.
+Publisher: Aspect Studio Software.
 Support: info@aspectstudio.net.

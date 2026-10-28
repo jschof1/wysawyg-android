@@ -2,7 +2,7 @@
 
 App name: Speakeasy
 
-Publisher: Aspect Studio
+Publisher: Aspect Studio Software
 
 Short description:
 
