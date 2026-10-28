@@ -174,10 +174,14 @@ class SmartCleanup private constructor(private val app: Context) {
         val started = System.currentTimeMillis()
         val request = Pending(text)
         val work = scope.async { lock.withLock { if (request.expired) null else generate(request) } }
-        val output = withTimeoutOrNull(TIMEOUT_MS) { work.await() }
-        if (output == null) {
-            request.expire()
-            work.cancel() // Leaves the queue if it is still waiting for the engine.
+        val output = try {
+            withTimeoutOrNull(TIMEOUT_MS) { work.await() }
+        } finally {
+            // Timed out or the caller gave up: stop this request and leave the queue.
+            if (!work.isCompleted) {
+                request.expire()
+                work.cancel()
+            }
         }
         val result = output?.let(::clean)?.takeIf { DictationFormatter.keepsWords(text, it) }
         WysawygLogger.i("Smart cleanup ${when { output == null -> "timed out"; result == null -> "rejected"; else -> "applied" }} " +

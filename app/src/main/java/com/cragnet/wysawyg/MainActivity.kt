@@ -481,7 +481,9 @@ class MainActivity : AppCompatActivity() {
         }
         AlertDialog.Builder(this).setTitle(R.string.style_preview)
             .setView(ScrollView(this).apply { addView(layout) })
-            .setPositiveButton("Close", null).show()
+            .setPositiveButton("Close", null)
+            .setOnDismissListener { smartPass?.cancel() }
+            .show()
     }
 
     private fun renderMode() {

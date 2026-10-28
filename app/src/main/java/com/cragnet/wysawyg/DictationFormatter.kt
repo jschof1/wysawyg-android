@@ -63,7 +63,9 @@ object DictationFormatter {
             val kept = text.substring(0, match.range.first).trimEnd().trimEnd('.', ',', '!', '?', ';', ':').trimEnd()
             // Deletes only the last phrase, so "Sounds good, see you at 6. Scratch that, see you at 7"
             // keeps "Sounds good".
-            val boundary = kept.indexOfLast { it in ".!?\n,;" }
+            val boundary = kept.indices.lastOrNull { i ->
+                kept[i] in ".!?\n;" || kept[i] == ',' && !(kept.getOrNull(i - 1)?.isDigit() == true && kept.getOrNull(i + 1)?.isDigit() == true)
+            } ?: -1
             val prefix = if (boundary >= 0) kept.substring(0, boundary + 1).let { if (it.endsWith(',') || it.endsWith(';')) it.dropLast(1) + "," else it } else ""
             val rest = text.substring(match.range.last + 1)
             text = if (prefix.isEmpty()) rest else if (prefix.endsWith('\n')) prefix + rest else "$prefix $rest"
@@ -97,7 +99,7 @@ object DictationFormatter {
     private val softCorrection = Regex("""(?i)^(.*?[\p{L}\p{N}]),\s+(?:actually|i mean)[,:]?\s+(.+?)([.!?]*)$""")
     /** The speech engine often punctuates a spoken correction as its own sentences:
      * "at five. No wait. Six." Rejoin it so the correction applies within the sentence. */
-    private val splitCorrection = Regex("""(?i)([\p{L}\p{N}])[.!?]\s+(no,? wait|wait,? no|no,? sorry|sorry,? (?:i mean|no)|i mean to say|or rather)[.,!?:]?\s+([\p{L}\p{N}][\p{L}\p{N}'’]*)""")
+    private val splitCorrection = Regex("""(?i)([\p{L}\p{N}])[.!?]\s+(no,? wait|wait,? no|no,? sorry|sorry,? (?:i mean|no)|i mean to say|or rather)[.,!?:]?\s+([\p{L}\p{N}][\p{L}\p{N}'’]*)(?=(?:\s+[\p{L}\p{N}'’]+)?(?:[,.!?]|$))""")
     private fun joinSplitCorrections(input: String): String = splitCorrection.replace(input) { match ->
         val word = match.groupValues[3]
         val lower = word.lowercase()
@@ -105,6 +107,7 @@ object DictationFormatter {
         "${match.groupValues[1]}, ${match.groupValues[2].lowercase()}, $fixed"
     }
 
+    private val negations = setOf("not", "don't", "dont", "never", "no", "can't", "cannot", "won't", "shouldn't", "didn't", "doesn't")
     private val numberWords = setOf("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
         "eleven", "twelve", "half", "quarter", "noon", "midday", "midnight")
     private val dayWords = setOf("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "today",
@@ -137,12 +140,17 @@ object DictationFormatter {
             val replacement = match.groupValues[2].split(' ').filter { it.isNotBlank() }
             if (replacement.isEmpty() || replacement.size > maxWords) return null
             val first = replacement.first()
-            fun name(word: String, index: Int) = index > 0 && word.firstOrNull()?.isUpperCase() == true && !iWords.containsMatchIn(word)
+            fun name(word: String, index: Int) = index > 0 && word.firstOrNull()?.isUpperCase() == true &&
+                !iWords.containsMatchIn(word) && kind(word) == null
             val anchor = before.indexOfLast { it.equals(first, ignoreCase = true) }.takeIf { it >= 0 }
                 ?: kind(first)?.let { wanted -> before.indexOfLast { kind(it) == wanted } }?.takeIf { it >= 0 }
                 ?: before.indices.lastOrNull { name(before[it], it) }?.takeIf { name(first, 1) }
                 ?: return null
+            // Never replace more words than the correction has ("five thousand pounds. No wait. Six"
+            // stays), and never leave a dangling negation ("Do not send it, no wait, send it now").
+            if (before.size - anchor > replacement.size) return null
             val kept = before.subList(0, anchor).joinToString(" ")
+            if (kept.split(' ').lastOrNull()?.lowercase()?.trim(',') in negations) return null
             return (if (kept.isEmpty()) "" else "$kept ") + correction + end
         }
         // A sentence can hold more than one correction; each pass removes one cue.

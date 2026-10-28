@@ -77,9 +77,19 @@ class DictationFormatterTest {
         assertEquals("Can you ask Sarah to send me the invoice by Thursday.",
             format("Can you ask Tom? No wait, Sarah, to send me the invoice by Friday. Sorry, I mean Thursday.", notes))
         assertEquals("We need milk, no wait, eggs and bread.", format("We need milk, no wait, eggs and bread.", notes))
+        // Unclear corrections stay as said rather than losing words.
+        assertEquals("Send the invoice to Tom on Friday, no wait, Sarah.", format("Send the invoice to Tom on Friday, no wait, Sarah.", notes))
+        assertEquals("Please ask Tom to send the invoice, actually Thursday.", format("Please ask Tom to send the invoice, actually Thursday.", notes))
+        assertEquals("Do not send the invoice. No wait. Send it now.", format("Do not send the invoice. No wait. Send it now.", notes))
+        assertEquals("Please transfer five thousand pounds, no wait, six.", format("Please transfer five thousand pounds. No wait. Six.", notes))
+        assertEquals("Do not send it, no wait, send it now.", format("Do not send it, no wait, send it now.", notes))
         assertEquals("Pick the blue one.", format("Pick the red one, no wait, the blue one.", notes))
         assertEquals("Please make that payment today.", format("Please make that payment today.", notes))
         assertEquals("I like it, actually it's great.", format("I like it, actually it's great.", notes))
+    }
+
+    @Test fun scratchThatKeepsNumbersWhole() {
+        assertEquals("Pay 2,000.", format("Pay 1,000. Scratch that. Pay 2,000.", notes))
     }
 
     @Test fun scratchThatOnlyActsAsACommand() {
