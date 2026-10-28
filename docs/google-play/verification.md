@@ -1,8 +1,8 @@
 # Release preparation verification
 
 The reviewed Android 16 preparation build is
-[`f375c53`](https://github.com/jschof1/wysawyg-android/commit/f375c53cabccbf90ed21c1edca1eba418ba9061d),
-verified in [GitHub Actions run 40727249944](https://github.com/jschof1/wysawyg-android/actions/runs/40727249944)
+[`e79b4ae`](https://github.com/jschof1/wysawyg-android/commit/e79b4ae3612f3496810ba55d097b37de655590cc),
+verified in [GitHub Actions run 40731035375](https://github.com/jschof1/wysawyg-android/actions/runs/40731035375)
 on 28 October 2026.
 
 | Check | Result |
@@ -16,20 +16,22 @@ on 28 October 2026.
 | Bundletool validation | Passed |
 | Target, backup and network flags in actual AAB | API 36, backup disabled, cleartext disabled, not debuggable |
 | Packaged native libraries | All four ARM64 ELF libraries have 16 KB alignment; bundle requests 16 KB APK zip alignment |
-| Estimated compressed download | 202,222,956–202,273,968 bytes; below the current 500 MB base-module limit |
+| Estimated compressed download | 202,222,960–202,273,989 bytes; below the current 500 MB base-module limit |
 | Required model and policy assets | Present in the AAB |
 | Release signing | Unsigned verification bundle; no upload key created |
 
 Download the
-[unsigned AAB](https://github.com/jschof1/wysawyg-android/actions/runs/40727249944/artifacts/12834340936),
-[verification reports](https://github.com/jschof1/wysawyg-android/actions/runs/40727249944/artifacts/12833113296),
-[device-test APK](https://github.com/jschof1/wysawyg-android/actions/runs/40727249944/artifacts/12833068172),
-or [submission packet](https://github.com/jschof1/wysawyg-android/actions/runs/40727249944/artifacts/12833128167).
+[unsigned AAB](https://github.com/jschof1/wysawyg-android/actions/runs/40731035375/artifacts/12834737673),
+[verification reports](https://github.com/jschof1/wysawyg-android/actions/runs/40731035375/artifacts/12835940431),
+[device-test APK](https://github.com/jschof1/wysawyg-android/actions/runs/40731035375/artifacts/12835845191),
+or [submission packet](https://github.com/jschof1/wysawyg-android/actions/runs/40731035375/artifacts/12834729451).
 GitHub artifacts expire under the repository's retention settings; they are not
 permanent release storage. Build the final signed bundle from the reviewed commit.
 
 The public privacy policy returned HTTPS 200 and matched the source file exactly:
-SHA-256 `d0fdc3873cbb7e4969dfafa26dcc6ed55a0fa84aeb38df99c7af43187e0ac33e`.
+SHA-256 `85d8ea2adaa92054290772f1c6913f42e197c778994f1a68e3adb7ea1ffccee8`.
+The CI submission packet contains this same policy and the confirmed publisher,
+support address, and redistribution permission record.
 The prepared store icon and feature graphic were inspected visually and checked
 for the required dimensions and colour formats.
 
