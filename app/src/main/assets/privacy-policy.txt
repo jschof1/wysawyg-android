@@ -1,8 +1,9 @@
 Speakeasy privacy policy
 Effective 28 October 2026
 
-This policy covers the Speakeasy Android app, package com.cragnet.wysawyg.
-Privacy and support contact: info@aspectstudios.net.
+This policy covers the Speakeasy Android app, published by Aspect Studio,
+package com.cragnet.wysawyg.
+Privacy and support contact: info@aspectstudio.net.
 
 On-device dictation
 
@@ -104,4 +105,4 @@ Speakeasy does not require an app account. It is a general productivity tool and
 is not directed at children under 13. We may update this policy when the app's data
 handling changes. The effective date above identifies this version. A change to
 the purpose of sensitive access requires a new disclosure and consent where
-applicable. Contact info@aspectstudios.net with privacy questions.
+applicable. Contact info@aspectstudio.net with privacy questions.

@@ -85,29 +85,24 @@ or discard Jack's current app data.
 
 ## Register the app and complete the listing
 
-Before public distribution, confirm the right to redistribute the original app.
-This fork contains code from `cragnet/wysawyg-android`; neither this checkout nor
-the upstream repository has a root app licence recorded. Permission has not been
-verified. The speech-model and font licences cover their own assets, not the
-original application. Keep the author's permission or an applicable licence with
-the release record. See [GitHub's licensing guidance](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/licensing-a-repository).
+Jack confirmed on 28 October 2026 that he has the original author's permission to
+redistribute this fork of `cragnet/wysawyg-android` on Google Play. Keep that
+permission with the release record. The speech-model and font licences remain
+with their respective assets.
 
 The current package ID preserves the existing local app during preparation. It
 does not solve the signer mismatch for a Play install. Decide the final public
 package ID and confirm its availability before the first Play upload; the current
 `com.cragnet.wysawyg` ID names the upstream author.
 
-1. Create and verify the Play developer account. Choose the account type that
-   matches the real publisher. **Aspect Studios** is the proposed display name;
-   verify the account's legal identity and public details during registration.
+1. Create and verify the Play developer account. Use **Aspect Studio** as the
+   public publisher name confirmed by Jack. Choose the account type that matches
+   the real publisher and verify its legal identity during registration.
 2. Create a free productivity app named **Speakeasy**. Confirm package
    `com.cragnet.wysawyg` is available before the first upload. The package name
    becomes permanent when registered with Play.
-3. Use `info@aspectstudios.net` for public support. Confirm that this mailbox is
-   monitored before submission. A 28 October DNS check found no MX record for
-   `aspectstudios.net`; the existing Aspect Studio site uses `aspectstudio.net`,
-   which has Google mail configured. The intended spelling and mailbox are still
-   awaiting Jack's confirmation. No mail or DNS configuration has been changed.
+3. Use `info@aspectstudio.net` for public support and privacy enquiries. Jack
+   confirmed this address on 28 October 2026.
 4. Paste [the listing copy](store-listing.md) and
    [the declaration drafts](declarations.md) into the matching Console forms.
 5. Use the public

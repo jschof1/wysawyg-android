@@ -2,6 +2,8 @@
 
 App name: Speakeasy
 
+Publisher: Aspect Studio
+
 Short description:
 
 Speak naturally. Type with your voice, offline, using your usual keyboard.
@@ -59,7 +61,7 @@ keyboard apps. Transcription speed depends on your phone.
 
 No ads. No analytics SDK. No Speakeasy account required.
 
-Support: info@aspectstudios.net
+Support: info@aspectstudio.net
 
 Release notes for 1.7.0:
 

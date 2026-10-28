@@ -44,13 +44,13 @@ integration was unavailable, so no fresh Android 15/16 handset or 16 KB runtime
 test, screenshot capture, permission-review video, signed upload, or Play Console
 review has been completed. CI compiles the device-test suite; it does not execute it.
 
-The intended support address and publisher spelling are awaiting Jack's answer:
-the requested plural `aspectstudios.net` has no MX record; singular
-`aspectstudio.net` has Google mail configured. No mailbox delivery has been tested.
-The upstream app has no root licence or README redistribution terms, and the
-author's permission has not been confirmed. These are publication gates.
+Jack confirmed **Aspect Studio** as publisher and `info@aspectstudio.net` as the
+public support and privacy address on 28 October 2026. He also confirmed that he
+has the original author's permission to redistribute this fork of
+`cragnet/wysawyg-android` on Google Play. These confirmations are recorded in
+[the decision trail](decisions.tsv).
 
-Other remaining actions are account verification, final public package ID,
+Remaining actions are account verification, final public package ID,
 upload-key creation and backup, device acceptance and media capture, Console
 declarations, and the test track required for the chosen account. Follow the
 [release guide](README.md) before submission.
