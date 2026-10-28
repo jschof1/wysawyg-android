@@ -1,0 +1,8 @@
+<resources>
+    <!-- Dark mode needs a light purple so text buttons stay readable on dark cards. -->
+    <style name="Theme.Wysawyg" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/purple_200</item>
+        <item name="colorPrimaryVariant">@color/purple_700</item>
+        <item name="colorOnPrimary">@color/black</item>
+    </style>
+</resources>
