@@ -85,6 +85,26 @@ class PrivacyConsentTest {
         }
     }
 
+    @Test fun malformedProviderResponseDoesNotEscapeIntoDiagnostics() = runBlocking {
+        val destination = CloudDestination.parse(server.url("/v1").toString(), allowHttp = true)
+        assertTrue(privacy.edit().putString("cloud_origin_v1", destination.origin).commit())
+        server.enqueue(MockResponse().setBody("private-provider-response"))
+        val failure = runCatching { OllamaClient(context).transcribe(byteArrayOf(1, 2)) }.exceptionOrNull()
+        assertNotNull(failure)
+        assertEquals("Invalid transcription response", failure?.message)
+        assertFalse(requireNotNull(failure).stackTraceToString().contains("private-provider-response"))
+    }
+
+    @Test fun invalidApiKeyCannotLeakThroughHttpHeaderErrors() = runBlocking {
+        val destination = CloudDestination.parse(server.url("/v1").toString(), allowHttp = true)
+        assertTrue(privacy.edit().putString("cloud_origin_v1", destination.origin).commit())
+        assertTrue(settings.edit().putString(MainActivity.PREF_API_KEY, "private-key\ninvalid").commit())
+        val failure = runCatching { OllamaClient(context).transcribe(byteArrayOf(1, 2)) }.exceptionOrNull()
+        assertEquals("The provider API key contains unsupported characters.", failure?.message)
+        assertFalse(requireNotNull(failure).stackTraceToString().contains("private-key"))
+        assertEquals(0, server.requestCount)
+    }
+
     @Test fun bothScreensOpenTheBundledPrivacyPolicy() {
         ActivityScenario.launch(MainActivity::class.java).use { activity ->
             activity.onActivity { it.findViewById<View>(R.id.privacyPolicyButton).performClick() }

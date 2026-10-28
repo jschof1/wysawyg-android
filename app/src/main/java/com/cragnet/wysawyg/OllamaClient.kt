@@ -9,6 +9,7 @@ import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
@@ -26,6 +27,7 @@ class OllamaClient(private val context: Context) {
         val prefs = context.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
         val url = prefs.getString(MainActivity.PREF_ALARMA_URL, "https://ollama.com/api/chat")!!
         val apiKey = prefs.getString(MainActivity.PREF_API_KEY, "") ?: ""
+        require(apiKey.all { it in ' '..'~' }) { "The provider API key contains unsupported characters." }
         val model = prefs.getString(MainActivity.PREF_MODEL, "gemma4:e4b")!!
         val systemPrompt = prefs.getString(MainActivity.PREF_SYSTEM_PROMPT, "Transcribe the audio exactly. Output only the spoken words, no commentary.")!!
         return CloudConfiguration(CloudDestination.parse(url, BuildConfig.DEBUG), apiKey, model, systemPrompt)
@@ -85,10 +87,7 @@ class OllamaClient(private val context: Context) {
             })
         }
 
-        if (nativeOllama) {
-            // Ollama native uses "think" to disable thinking mode on newer Gemma models.
-            json.put("think", false)
-        }
+        json.put("think", false)
 
         val body = json.toString().toRequestBody("application/json".toMediaType())
         WysawygLogger.d("Transcription request body length: ${body.contentLength()} bytes")
@@ -107,20 +106,7 @@ class OllamaClient(private val context: Context) {
             response.body?.string() ?: error("Empty response")
         }
 
-        val parsed = JSONObject(responseBody)
-
-
-        if (nativeOllama) {
-            return parsed.getJSONObject("message").optString("content", "").trim()
-        }
-
-        val choices = parsed.optJSONArray("choices")
-        if (choices != null && choices.length() > 0) {
-            return choices.getJSONObject(0).getJSONObject("message").optString("content", "").trim()
-        }
-
-        return parsed.optJSONObject("message")?.optString("content", "")?.trim()
-            ?: parsed.optString("response", "").trim()
+        return responseText(responseBody) { it.getJSONObject("message").optString("content", "") }
     }
     private fun transcribeCompatible(endpoint: String, model: String, wavBytes: ByteArray, apiKey: String): String {
         val transcriptionEndpoint = endpoint.removeSuffix("/chat/completions") + "/audio/transcriptions"
@@ -134,8 +120,13 @@ class OllamaClient(private val context: Context) {
         return client.newCall(request).execute().use { response ->
             val result = response.body?.string() ?: error("Empty transcription response")
             check(response.isSuccessful) { "Transcription error ${response.code}" }
-            JSONObject(result).getString("text").trim()
+            responseText(result) { it.getString("text") }
         }
     }
 
+    private fun responseText(body: String, read: (JSONObject) -> String): String = try {
+        read(JSONObject(body)).trim()
+    } catch (_: JSONException) {
+        error("Invalid transcription response")
+    }
 }

@@ -90,7 +90,8 @@ or discard Jack's current app data.
    This is the same text bundled in the app. Check that the URL opens without
    sign-in and that the contact address is correct. A branded HTML privacy page
    can replace it later if the Console requires a different format.
-6. Supply a 512×512 store icon, 1024×500 feature graphic, and at least two current
+6. Use the prepared [store icon](graphics/store-icon.png) and
+   [feature graphic](graphics/feature-graphic.png), and supply at least two current
    phone screenshots. Capture screenshots from the tested release, including its
    real setup state. Earlier images in `docs/design/speakeasy` are design evidence,
    not acceptance evidence for this release.
@@ -143,4 +144,5 @@ this requirement. Check the Console for requirements for the chosen account.
 - [User data and privacy policy](https://support.google.com/googleplay/android-developer/answer/10144311)
 - [Data safety](https://support.google.com/googleplay/android-developer/answer/10787469)
 - [App size limits](https://support.google.com/googleplay/android-developer/answer/9859372)
+- [Listing artwork requirements](https://support.google.com/googleplay/android-developer/answer/9866151)
 - [16 KB page size support](https://developer.android.com/guide/practices/page-sizes)
