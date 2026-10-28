@@ -33,6 +33,15 @@ GitHub artifacts expire under the repository's retention settings; they are not
 permanent release storage. Preserve this signed build and its reports before
 uploading to Play.
 
+The signed AAB and both report/submission archives were preserved on Jack Drive
+under `Mac-Offload/Play-Releases/speakeasy-1.7.0-0c9c623`. The upload file is
+`speakeasy-1.7.0-upload.aab`, 202,862,386 bytes, SHA-256
+`dbed8c6de48f50465b4e11d81677c6c366bb0a1b0a0b60f584f2af2de51c1f31`.
+The downloaded artifact ZIP matched GitHub's SHA-256
+`d86a7fc4aba93d87370dda46e6acfca63228287da270b605a118bc2e99db723d`.
+Both ZIP CRCs, the AAB's policy and its embedded public certificate were checked
+locally. Full signature verification ran in CI. A JSON receipt is beside the AAB.
+
 The public privacy policy returned HTTPS 200 and matched the source file exactly:
 SHA-256 `540e279ff151c8ed9396815a46869278d836cc2ad155066ee6afd79c994a83dc`.
 The actual AAB and CI submission packet contain the same policy. The signature

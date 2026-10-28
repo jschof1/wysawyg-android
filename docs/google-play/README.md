@@ -108,6 +108,9 @@ and debug package remain `com.cragnet.wysawyg`.
    confirmed by Jack after Google rejected **Aspect Studio** as already registered.
    The public name can differ from the verified individual's legal name. Jack
    must approve the registration agreement and fee before those steps are completed.
+   Google also displays the verified legal name, country and developer email for
+   individual accounts. Check the [identity information requirements](https://support.google.com/googleplay/android-developer/answer/13628312)
+   and review the final registration details before accepting the agreement.
 2. Create a free productivity app named **Speakeasy**. Confirm package
    `net.aspectstudio.speakeasy` is available before the first upload. The package name
    becomes permanent when registered with Play.
