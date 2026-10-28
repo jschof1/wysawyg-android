@@ -3,11 +3,13 @@
 import argparse
 import csv
 import re
+import ssl
 import struct
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
 import zipfile
+from pathlib import Path
 
 ANDROID = "{http://schemas.android.com/apk/res/android}"
 
@@ -48,7 +50,7 @@ def main():
     manifest = ET.fromstring(bundletool("dump", "manifest", "--module=base"))
     sdk = manifest.find("uses-sdk")
     app = manifest.find("application")
-    check(manifest.get("package") == "com.cragnet.wysawyg", "package identity is preserved")
+    check(manifest.get("package") == "net.aspectstudio.speakeasy", "release uses the Aspect Studio package ID")
     check(sdk is not None and int(sdk.get(ANDROID + "targetSdkVersion", "0")) >= 36,
           "release targets Android 16 or higher")
     check(app is not None and app.get(ANDROID + "debuggable", "false") == "false",
@@ -75,6 +77,10 @@ def main():
             verify_elf(bundle.read(name), name)
         for asset in ("phonon/weights.bin", "phonon/weights.json", "phonon/tokens.txt", "privacy-policy.txt"):
             check(f"base/assets/{asset}" in names, f"{asset} is packaged")
+        root = Path(__file__).resolve().parents[1]
+        check(bundle.read("base/assets/privacy-policy.txt") ==
+              (root / "app/src/main/assets/privacy-policy.txt").read_bytes(),
+              "bundled privacy policy matches the reviewed source")
         signed = any(re.fullmatch(r"META-INF/[^/]+\.(RSA|DSA|EC)", name) for name in names)
 
     if signed:
@@ -83,6 +89,11 @@ def main():
         cert = subprocess.check_output(["keytool", "-printcert", "-jarfile", args.bundle], text=True)
         check("android debug" not in cert.lower() and "androiddebugkey" not in cert.lower(),
               "bundle is not signed with an Android debug certificate")
+        certificate = subprocess.check_output(["keytool", "-printcert", "-rfc", "-jarfile", args.bundle], text=True)
+        pem = re.search(r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", certificate, re.DOTALL)
+        expected = (root / "docs/google-play/upload-certificate.pem").read_text()
+        check(pem is not None and ssl.PEM_cert_to_DER_cert(pem.group()) ==
+              ssl.PEM_cert_to_DER_cert(expected), "bundle uses the recorded upload certificate")
     elif args.require_signed:
         raise ValueError("Upload requires a signed AAB. Configure the upload key and rebuild.")
     else:

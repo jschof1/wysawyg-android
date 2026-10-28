@@ -2,7 +2,8 @@ Speakeasy privacy policy
 Effective 28 October 2026
 
 This policy covers the Speakeasy Android app, published by Aspect Studio,
-package com.cragnet.wysawyg.
+with Google Play package net.aspectstudio.speakeasy. Earlier sideloaded and
+development versions use package com.cragnet.wysawyg.
 Privacy and support contact: info@aspectstudio.net.
 
 On-device dictation

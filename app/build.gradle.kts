@@ -36,6 +36,7 @@ android {
 
     signingConfigs {
         if (hasUploadKey) create("upload") {
+            storeType = "PKCS12"
             storeFile = file(requireNotNull(uploadSigning["SPEAKEASY_KEYSTORE_PATH"]))
             check(storeFile!!.isFile) { "Upload keystore does not exist at SPEAKEASY_KEYSTORE_PATH." }
             storePassword = uploadSigning["SPEAKEASY_KEYSTORE_PASSWORD"]
@@ -56,6 +57,12 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        variant.applicationId.set("net.aspectstudio.speakeasy")
     }
 }
 

@@ -73,12 +73,12 @@ jobs:
         run: |
           test -n "$UPLOAD_KEY_BASE64" && test -n "$STORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD"
           umask 077
-          printf '%s' "$UPLOAD_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/speakeasy-upload.jks"
+          printf '%s' "$UPLOAD_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/speakeasy-upload.p12"
 
       - name: Build native engine, tests, APKs and release AAB
         env:
           SPEAKEASY_REQUIRE_SIGNING: ${{ inputs.signed_release == true && 'true' || 'false' }}
-          SPEAKEASY_KEYSTORE_PATH: ${{ inputs.signed_release == true && format('{0}/speakeasy-upload.jks', runner.temp) || '' }}
+          SPEAKEASY_KEYSTORE_PATH: ${{ inputs.signed_release == true && format('{0}/speakeasy-upload.p12', runner.temp) || '' }}
           SPEAKEASY_KEYSTORE_PASSWORD: ${{ inputs.signed_release == true && secrets.SPEAKEASY_KEYSTORE_PASSWORD || '' }}
           SPEAKEASY_KEY_ALIAS: ${{ inputs.signed_release == true && secrets.SPEAKEASY_KEY_ALIAS || '' }}
           SPEAKEASY_KEY_PASSWORD: ${{ inputs.signed_release == true && secrets.SPEAKEASY_KEY_PASSWORD || '' }}
@@ -102,7 +102,7 @@ jobs:
 
       - name: Remove temporary upload key
         if: always()
-        run: rm -f "$RUNNER_TEMP/speakeasy-upload.jks"
+        run: rm -f "$RUNNER_TEMP/speakeasy-upload.p12"
 
       - name: Upload release bundle
         uses: actions/upload-artifact@v5

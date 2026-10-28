@@ -1,5 +1,9 @@
 # Release preparation verification
 
+The signed Play build with package `net.aspectstudio.speakeasy` is being prepared.
+The upload key is created, backed up, and configured for CI. The results below
+describe the previous unsigned build until the signed run has completed.
+
 The reviewed Android 16 preparation build is
 [`e79b4ae`](https://github.com/jschof1/wysawyg-android/commit/e79b4ae3612f3496810ba55d097b37de655590cc),
 verified in [GitHub Actions run 40731035375](https://github.com/jschof1/wysawyg-android/actions/runs/40731035375)
@@ -18,7 +22,7 @@ on 28 October 2026.
 | Packaged native libraries | All four ARM64 ELF libraries have 16 KB alignment; bundle requests 16 KB APK zip alignment |
 | Estimated compressed download | 202,222,960–202,273,989 bytes; below the current 500 MB base-module limit |
 | Required model and policy assets | Present in the AAB |
-| Release signing | Unsigned verification bundle; no upload key created |
+| Release signing | This run was unsigned; a new signed run is required for the Play package ID |
 
 Download the
 [unsigned AAB](https://github.com/jschof1/wysawyg-android/actions/runs/40731035375/artifacts/12834737673),
@@ -52,7 +56,7 @@ has the original author's permission to redistribute this fork of
 `cragnet/wysawyg-android` on Google Play. These confirmations are recorded in
 [the decision trail](decisions.tsv).
 
-Remaining actions are account verification, final public package ID,
-upload-key creation and backup, device acceptance and media capture, Console
-declarations, and the test track required for the chosen account. Follow the
+Remaining actions are account sign-in and verification, first upload of the chosen
+public package ID, signed bundle verification, device acceptance and media capture,
+Console declarations, and the test track required for the chosen account. Follow the
 [release guide](README.md) before submission.
