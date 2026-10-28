@@ -46,7 +46,7 @@ class SettingsExporter(private val activity: AppCompatActivity, private val onIm
                     writer.write(json.toString(2))
                 }
             }
-            WysawygLogger.i("Settings exported to $uri")
+            WysawygLogger.i("Settings exported without API key")
             Toast.makeText(activity, "Settings exported", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             WysawygLogger.e("Failed to export settings", e)
@@ -75,7 +75,7 @@ class SettingsExporter(private val activity: AppCompatActivity, private val onIm
             }
             onImported()
 
-            WysawygLogger.i("Settings imported from $uri")
+            WysawygLogger.i("Settings imported with on-device transcription selected")
             Toast.makeText(activity, "Settings imported", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
             WysawygLogger.e("Failed to import settings", e)

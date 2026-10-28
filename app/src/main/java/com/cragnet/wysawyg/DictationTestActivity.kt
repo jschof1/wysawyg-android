@@ -87,6 +87,7 @@ class DictationTestActivity : AppCompatActivity() {
             setOnClickListener { editor.text.clear(); secondEditor.text.clear() }
         })
         setContentView(layout)
+        applySystemInsets()
         layout.requestFocus()
     }
 }

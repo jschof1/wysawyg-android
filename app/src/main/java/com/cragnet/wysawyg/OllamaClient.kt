@@ -15,17 +15,31 @@ import java.util.concurrent.TimeUnit
 class OllamaClient(private val context: Context) {
 
     private val client = OkHttpClient.Builder()
+        .followRedirects(false)
+        .followSslRedirects(false)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    suspend fun transcribe(wavBytes: ByteArray, onTranscribed: (String) -> Unit = {}): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    fun configuration(): CloudConfiguration {
         val prefs = context.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
         val url = prefs.getString(MainActivity.PREF_ALARMA_URL, "https://ollama.com/api/chat")!!
         val apiKey = prefs.getString(MainActivity.PREF_API_KEY, "") ?: ""
         val model = prefs.getString(MainActivity.PREF_MODEL, "gemma4:e4b")!!
         val systemPrompt = prefs.getString(MainActivity.PREF_SYSTEM_PROMPT, "Transcribe the audio exactly. Output only the spoken words, no commentary.")!!
+        return CloudConfiguration(CloudDestination.parse(url, BuildConfig.DEBUG), apiKey, model, systemPrompt)
+    }
+
+    suspend fun transcribe(wavBytes: ByteArray, approved: CloudConfiguration = configuration()): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val prefs = context.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
+        check(PrivacyConsent.hasCloud(context, approved.destination)) { context.getString(R.string.cloud_setup_needed) }
+        check(TranscriptionMode.fromStored(prefs.getString(TranscriptionMode.KEY, null)) == TranscriptionMode.CLOUD &&
+            configuration() == approved) { "Cloud settings changed. Record again using the current settings." }
+        val url = approved.destination.url
+        val apiKey = approved.apiKey
+        val model = approved.model
+        val systemPrompt = approved.prompt
 
         val uri = Uri.parse(url)
         val modelFromUrl = uri.getQueryParameter("model")
@@ -41,14 +55,10 @@ class OllamaClient(private val context: Context) {
             cleanUri.removeSuffix("/v1/audio/transcriptions").removeSuffix("/v1/chat/completions").removeSuffix("/v1") + "/v1/chat/completions"
         }
 
-        WysawygLogger.i("OllamaClient transcribe: endpoint=$endpoint model=$effectiveModel audio=${wavBytes.size} bytes apiKeyPresent=${apiKey.isNotBlank()}")
-
-        transcribeAudio(endpoint, effectiveModel, systemPrompt, wavBytes, apiKey, isOllama).also(onTranscribed)
+        transcribeAudio(endpoint, effectiveModel, systemPrompt, wavBytes, apiKey, isOllama)
     }
 
     private fun transcribeAudio(endpoint: String, model: String, systemPrompt: String, wavBytes: ByteArray, apiKey: String, nativeOllama: Boolean): String {
-        WysawygLogger.i("Audio transcription POST $endpoint model=$model")
-
         if (!nativeOllama) return transcribeCompatible(endpoint, model, wavBytes, apiKey)
 
         val base64Audio = Base64.encodeToString(wavBytes, Base64.NO_WRAP)
@@ -92,14 +102,9 @@ class OllamaClient(private val context: Context) {
         }
 
         val request = requestBuilder.build()
-        val response = client.newCall(request).execute()
-        val responseBody = response.body?.string() ?: throw RuntimeException("Empty response")
-
-        WysawygLogger.i("Transcription response code: ${response.code}")
-
-        if (!response.isSuccessful) {
-            WysawygLogger.e("Transcription error ${response.code}: $responseBody")
-            throw RuntimeException("Transcription error ${response.code}: $responseBody")
+        val responseBody = client.newCall(request).execute().use { response ->
+            check(response.isSuccessful) { "Transcription error ${response.code}" }
+            response.body?.string() ?: error("Empty response")
         }
 
         val parsed = JSONObject(responseBody)

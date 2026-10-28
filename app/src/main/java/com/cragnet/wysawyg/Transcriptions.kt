@@ -10,11 +10,29 @@ object Transcriptions {
         val recovery = Recoveries.get(app)
         val offline by lazy { PhononClient(app) }
         val cloud by lazy { OllamaClient(app) }
+        fun prepare(): TranscriptionBackend {
+            val mode = effectiveMode(app)
+            if (mode == TranscriptionMode.OFFLINE) return offline
+            val configuration = cloud.configuration()
+            check(PrivacyConsent.hasCloud(app, configuration.destination)) { app.getString(R.string.cloud_setup_needed) }
+            return TranscriptionBackend { audio -> cloud.transcribe(audio, configuration) }
+        }
         TranscriptionClient(
-            CaptureAdmission { recovery.snapshot().canCapture },
-            { TranscriptionMode.fromStored(app.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
-                .getString(TranscriptionMode.KEY, null)) },
+            CaptureAdmission(prepare = ::prepare) { recovery.snapshot().canCapture },
+            { effectiveMode(app) },
             TranscriptionRouter({ offline }, { TranscriptionBackend { cloud.transcribe(it) } })
         ).also { client = it }
+    }
+
+    fun effectiveMode(context: Context): TranscriptionMode {
+        val prefs = context.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
+        if (TranscriptionMode.fromStored(prefs.getString(TranscriptionMode.KEY, null)) != TranscriptionMode.CLOUD) {
+            return TranscriptionMode.OFFLINE
+        }
+        val approved = runCatching {
+            PrivacyConsent.hasCloud(context, CloudDestination.parse(
+                prefs.getString(MainActivity.PREF_ALARMA_URL, "https://ollama.com/api/chat").orEmpty(), BuildConfig.DEBUG))
+        }.getOrDefault(false)
+        return if (approved) TranscriptionMode.CLOUD else TranscriptionMode.OFFLINE
     }
 }

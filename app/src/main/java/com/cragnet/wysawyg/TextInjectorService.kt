@@ -48,7 +48,7 @@ class TextInjectorService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         WysawygLogger.init(this)
-        if (Build.VERSION.SDK_INT >= 33) {
+        if (Build.VERSION.SDK_INT >= 33 && PrivacyConsent.hasAccessibility(this)) {
             serviceInfo = serviceInfo.apply { flags = flags or AccessibilityServiceInfo.FLAG_INPUT_METHOD_EDITOR }
         }
         OverlayService.ensureRunning(this)
@@ -65,12 +65,23 @@ class TextInjectorService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (!PrivacyConsent.hasAccessibility(this)) return
         // Window events include the keyboard being dismissed without losing editor focus.
         handler.removeCallbacks(refresh)
         handler.postDelayed(refresh, 50)
     }
 
     fun refreshEditor() {
+        if (!PrivacyConsent.hasAccessibility(this)) {
+            editor = null
+            keyboardVisible = false
+            generation++
+            OverlayService.updateEditor(false, Rect())
+            return
+        }
+        if (Build.VERSION.SDK_INT >= 33 && (serviceInfo.flags and AccessibilityServiceInfo.FLAG_INPUT_METHOD_EDITOR) == 0) {
+            serviceInfo = serviceInfo.apply { flags = flags or AccessibilityServiceInfo.FLAG_INPUT_METHOD_EDITOR }
+        }
         try {
             OverlayService.ensureRunning(this)
             val visibleWindows = windows
@@ -198,6 +209,7 @@ class TextInjectorService : AccessibilityService() {
     }
 
     private fun writeText(current: AccessibilityNodeInfo, target: Target, text: String): InsertResult {
+        if (!PrivacyConsent.hasAccessibility(this)) return InsertResult.UNSUPPORTED
         val edit = DictationText.insert(target.text, target.selectionStart, target.selectionEnd, text)
         val arguments = Bundle().apply {
             putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, edit.text)

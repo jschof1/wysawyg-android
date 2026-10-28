@@ -11,6 +11,7 @@ class LogActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_log)
+        applySystemInsets()
 
         val logView = findViewById<EditText>(R.id.logView)
         logView.setText(WysawygLogger.getLogText(this))

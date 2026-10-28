@@ -53,6 +53,7 @@ class WritingStyleActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_writing_style)
+        applySystemInsets()
         findViewById<MaterialToolbar>(R.id.styleToolbar).setNavigationOnClickListener { finish() }
         settings = StyleSettings.load(prefs())
 

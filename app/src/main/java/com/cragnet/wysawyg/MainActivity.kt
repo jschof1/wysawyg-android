@@ -37,6 +37,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        applySystemInsets()
         WysawygLogger.init(this)
         WysawygLogger.i("MainActivity started")
 
@@ -48,11 +49,10 @@ class MainActivity : AppCompatActivity() {
             render()
         }
         findViewById<View>(R.id.enableAccessibilityButton).setOnClickListener {
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            requestAccessibility()
         }
         findViewById<View>(R.id.allowBackgroundButton).setOnClickListener {
-            if (!batteryUnrestricted()) startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                Uri.parse("package:$packageName")))
+            if (!batteryUnrestricted()) startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
         }
         findViewById<View>(R.id.setupHeader).setOnClickListener {
             val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
@@ -70,6 +70,9 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<View>(R.id.moreSettingsButton).setOnClickListener {
             startActivity(Intent(this, MoreSettingsActivity::class.java))
+        }
+        findViewById<View>(R.id.privacyPolicyButton).setOnClickListener {
+            PrivacyConsent.showPrivacy(this) { render() }
         }
     }
 
@@ -90,10 +93,10 @@ class MainActivity : AppCompatActivity() {
     private fun render() {
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
         val enabled = OverlayService.isEnabled(this)
-        val accessibility = TextInjectorService.instance != null
+        val accessibility = PrivacyConsent.hasAccessibility(this) && TextInjectorService.instance != null
         val battery = batteryUnrestricted()
         val permissions = hasPermissions()
-        val cloud = TranscriptionMode.fromStored(prefs.getString(TranscriptionMode.KEY, null)) == TranscriptionMode.CLOUD
+        val cloud = Transcriptions.effectiveMode(this) == TranscriptionMode.CLOUD
 
         val running = OverlayService.isRunning()
         val ready = enabled && permissions && accessibility && running
@@ -216,9 +219,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun startOverlayService() {
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putBoolean(PREF_OVERLAY_ENABLED, true).apply()
-        if (TextInjectorService.instance == null) {
-            Toast.makeText(this, "Turn on Speakeasy in Accessibility to show dictation when you type", Toast.LENGTH_LONG).show()
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        if (!PrivacyConsent.hasAccessibility(this) || TextInjectorService.instance == null) {
+            requestAccessibility()
             return
         }
         if (OverlayService.ensureRunning(this)) {
@@ -233,6 +235,13 @@ class MainActivity : AppCompatActivity() {
         render()
         // The service starts asynchronously; look again once it has had a moment.
         window.decorView.postDelayed({ if (!isFinishing) render() }, 1000)
+    }
+
+    private fun requestAccessibility() {
+        PrivacyConsent.requestAccessibility(this) {
+            if (TextInjectorService.instance == null) startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            else { TextInjectorService.instance?.refreshEditor(); render() }
+        }
     }
 }
 

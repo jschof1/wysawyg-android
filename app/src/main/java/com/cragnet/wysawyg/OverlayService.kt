@@ -75,6 +75,7 @@ class OverlayService : Service() {
     companion object {
         private const val CHANNEL_ID = "wysawyg_overlay"
         private const val STOP = "com.cragnet.wysawyg.STOP_DICTATION"
+        private var nextStartAttemptAt = 0L
         private var instance: OverlayService? = null
             private set
         fun isRunning(): Boolean = instance != null
@@ -85,9 +86,12 @@ class OverlayService : Service() {
         fun hasPermissions(context: Context): Boolean = Settings.canDrawOverlays(context) &&
             ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 
-        fun ensureRunning(context: Context): Boolean {
-            if (!isEnabled(context) || !hasPermissions(context)) return false
+        @Synchronized fun ensureRunning(context: Context): Boolean {
+            if (!isEnabled(context) || !hasPermissions(context) || !PrivacyConsent.hasAccessibility(context)) return false
             if (isRunning()) return true
+            val now = SystemClock.elapsedRealtime()
+            if (now < nextStartAttemptAt) return false
+            nextStartAttemptAt = now + 5000
             return try {
                 ContextCompat.startForegroundService(context, Intent(context, OverlayService::class.java))
                 true
@@ -98,6 +102,7 @@ class OverlayService : Service() {
         }
 
         fun pause(context: Context) {
+            nextStartAttemptAt = 0L
             context.getSharedPreferences(MainActivity.PREFS_NAME, MODE_PRIVATE).edit()
                 .putBoolean(MainActivity.PREF_OVERLAY_ENABLED, false).apply()
             context.stopService(Intent(context, OverlayService::class.java))
@@ -133,7 +138,7 @@ class OverlayService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        if (!isEnabled(this) || !hasPermissions(this)) {
+        if (!isEnabled(this) || !hasPermissions(this) || !PrivacyConsent.hasAccessibility(this)) {
             stopSelf()
             return START_NOT_STICKY
         }
@@ -349,7 +354,10 @@ class OverlayService : Service() {
 
     private fun startRecording() {
         if (state != State.IDLE || recoveryAction || !recoveries.snapshot().canCapture) return
-        capture = client.admission.acquire() ?: run {
+        capture = try { client.admission.acquire() } catch (error: Exception) {
+            toast(error.message ?: getString(R.string.cloud_setup_needed))
+            return
+        } ?: run {
             toast("Finish the current dictation or resolve recovered transcripts first.")
             return
         }

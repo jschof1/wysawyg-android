@@ -2,6 +2,25 @@
 
 Speakeasy (formerly WYSAWYG) is a voice-to-text app for Android. Its floating microphone works with your existing keyboard; a custom keyboard IME is optional. English speech is transcribed on the phone using bundled Phonon 2 by default, then inserted at the cursor. No API setup or model download is needed. Optional cloud transcription lives in More settings. Failed insertion can be recovered explicitly.
 
+## Version 1.7.0 (code 12)
+
+Prepares an Android 16 release bundle for Google Play. Floating dictation now
+requires a separate Accessibility disclosure and consent, including when the
+service was enabled outside the app. Optional cloud uploads require consent for
+the configured provider and HTTPS in release builds. Without consent, dictation
+uses the on-device engine. A recording keeps the provider configuration selected
+before capture; settings changes cannot redirect it. Cloud redirects are refused.
+
+Privacy and permissions are available from Home and More settings. Automatic
+backup and device transfer of app data are disabled. Settings exports omit API
+keys, and imports always select on-device transcription. Existing credentials and
+recoveries stay on the phone. Release logcat output is reduced and copied
+recoveries are marked sensitive.
+
+See [Google Play release preparation](docs/google-play/README.md) for the
+unsigned/signed build workflow, privacy policy, listing, declaration drafts, and
+the account, signing, device, graphics, video, and testing gates before submission.
+
 ## Version 1.6.0 (code 11)
 
 The Speakeasy redesign: a forest-and-mint theme in light and
@@ -53,7 +72,7 @@ Model and runtime notices are bundled and available in Settings.
 ## Settings
 - On-device transcription by default
 - Collapsed Advanced: cloud choice, provider URL, API key, model and prompt
-- Versioned JSON import/export, including the API key; keep exports private
+- Versioned JSON import/export; exports omit API keys and consent, imports use on-device transcription
 
 ## Permissions needed
 - `SYSTEM_ALERT_WINDOW`
@@ -63,7 +82,7 @@ Model and runtime notices are bundled and available in Settings.
 - `BIND_INPUT_METHOD`
 
 ## Build
-Android Studio / Gradle. Minimum SDK 26 (Android 8), target SDK 34. APK builds require verified model assets and native libraries; follow the [build instructions](docs/offline-transcription.md#builds).
+Android Studio / Gradle. Minimum SDK 26 (Android 8), target SDK 36 (Android 16). Builds require verified model assets and native libraries; follow the [build instructions](docs/offline-transcription.md#builds) and [Play release guide](docs/google-play/README.md).
 
 ## Earlier releases and optional cloud behavior
 

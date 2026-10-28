@@ -9,8 +9,13 @@ object Recoveries {
     @Volatile private var store: RecoveryStore? = null
 
     fun copy(context: Context, item: RecoveredTranscript): Boolean = try {
+        val clip = ClipData.newPlainText("Dictation", item.text).apply {
+            description.extras = android.os.PersistableBundle().apply {
+                putBoolean("android.content.extra.IS_SENSITIVE", true)
+            }
+        }
         context.getSystemService(ClipboardManager::class.java)
-            .setPrimaryClip(ClipData.newPlainText("Dictation", item.text))
+            .setPrimaryClip(clip)
         true
     } catch (e: RuntimeException) {
         WysawygLogger.e("Could not copy full recovery transcript", e)

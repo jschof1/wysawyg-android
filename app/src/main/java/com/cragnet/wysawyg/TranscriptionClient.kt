@@ -16,8 +16,6 @@ enum class TranscriptionMode {
     companion object {
         const val KEY = "transcription_mode"
         fun fromStored(value: String?): TranscriptionMode = if (value == CLOUD.name) CLOUD else OFFLINE
-        fun fromImport(version: Int, value: String?): TranscriptionMode =
-            if (version == 2) fromStored(value) else OFFLINE
     }
 }
 
@@ -38,13 +36,16 @@ class TranscriptionRouter(
 
 /** One app-wide reservation from before microphone acquisition through staging/failure.
  * This also prevents two editors competing for the microphone or the fifth recovery slot. */
-class CaptureAdmission(private val canCapture: () -> Boolean) {
+class CaptureAdmission(
+    private val prepare: (() -> TranscriptionBackend)? = null,
+    private val canCapture: () -> Boolean
+) {
     private var current: Reservation? = null
     @Synchronized fun acquire(): Reservation? {
         if (current != null || !canCapture()) return null
-        return Reservation().also { current = it }
+        return Reservation(prepare?.invoke()).also { current = it }
     }
-    inner class Reservation internal constructor() {
+    inner class Reservation internal constructor(internal val backend: TranscriptionBackend?) {
         private var accepted = false
         fun accept() = synchronized(this@CaptureAdmission) {
             check(current === this && !accepted) { "Capture reservation expired" }
@@ -82,10 +83,10 @@ class TranscriptionClient(
             return@suspendCancellableCoroutine
         }
         try {
-            val selectedMode = mode()
+            val backend = reservation.backend ?: router.select(mode())
             val work = scope.launch {
                 try {
-                    val raw = serial.withLock { router.select(selectedMode).transcribe(wavBytes) }
+                    val raw = serial.withLock { backend.transcribe(wavBytes) }
                     val text = try { interpret(raw) } catch (e: Exception) { raw }
                     onTranscribed(text)
                     reservation.complete()

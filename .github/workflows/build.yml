@@ -1,4 +1,4 @@
-name: Build APK
+name: Verify Android release
 
 on:
   push:
@@ -6,6 +6,18 @@ on:
   pull_request:
     branches: ["**"]
   workflow_dispatch:
+    inputs:
+      signed_release:
+        description: Build a Play upload bundle using the configured upload key
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   build:
@@ -39,8 +51,8 @@ jobs:
           packages: platform-tools
           log-accepted-android-sdk-licenses: false
 
-      - name: Install pinned NDK r27c
-        run: sdkmanager "ndk;27.2.12479018" "platforms;android-34" "build-tools;34.0.0"
+      - name: Install pinned NDK r27c and Android 16
+        run: sdkmanager "ndk;27.2.12479018" "platforms;android-36" "build-tools;35.0.0"
 
       - name: Cache pinned model archive and assets
         uses: actions/cache@v5
@@ -51,11 +63,72 @@ jobs:
       - name: Prepare and verify bundled model
         run: python3 scripts/prepare-phonon-model.py --download --model-dir .phonon/c_weights --archive .phonon/phonon-2-c-weights-v1.tar.gz
 
-      - name: Build native engine, tests and APKs
+      - name: Restore upload key for an explicitly requested signed build
+        if: ${{ inputs.signed_release == true }}
+        env:
+          UPLOAD_KEY_BASE64: ${{ secrets.SPEAKEASY_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.SPEAKEASY_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.SPEAKEASY_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.SPEAKEASY_KEY_PASSWORD }}
+        run: |
+          test -n "$UPLOAD_KEY_BASE64" && test -n "$STORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD"
+          umask 077
+          printf '%s' "$UPLOAD_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/speakeasy-upload.jks"
+
+      - name: Build native engine, tests, APKs and release AAB
+        env:
+          SPEAKEASY_REQUIRE_SIGNING: ${{ inputs.signed_release == true && 'true' || 'false' }}
+          SPEAKEASY_KEYSTORE_PATH: ${{ inputs.signed_release == true && format('{0}/speakeasy-upload.jks', runner.temp) || '' }}
+          SPEAKEASY_KEYSTORE_PASSWORD: ${{ inputs.signed_release == true && secrets.SPEAKEASY_KEYSTORE_PASSWORD || '' }}
+          SPEAKEASY_KEY_ALIAS: ${{ inputs.signed_release == true && secrets.SPEAKEASY_KEY_ALIAS || '' }}
+          SPEAKEASY_KEY_PASSWORD: ${{ inputs.signed_release == true && secrets.SPEAKEASY_KEY_PASSWORD || '' }}
         run: |
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
           python3 scripts/test-phonon-model.py
-          ./gradlew testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest --no-daemon --max-workers=2
+          python3 scripts/test-play-bundle.py
+          ./gradlew testDebugUnitTest testReleaseUnitTest lintDebug lintRelease assembleDebug assembleDebugAndroidTest bundleRelease --no-daemon --max-workers=2
+
+      - name: Verify Play bundle and measure generated download size
+        env:
+          SIGNED_RELEASE: ${{ inputs.signed_release }}
+        run: |
+          curl -fL --retry 3 https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar -o "$RUNNER_TEMP/bundletool.jar"
+          printf '%s  %s\n' a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29 "$RUNNER_TEMP/bundletool.jar" | sha256sum --check
+          signing_check=()
+          if [ "$SIGNED_RELEASE" = true ]; then signing_check+=(--require-signed); fi
+          java -jar "$RUNNER_TEMP/bundletool.jar" build-apks --bundle=app/build/outputs/bundle/release/app-release.aab --output="$RUNNER_TEMP/verification.apks"
+          java -jar "$RUNNER_TEMP/bundletool.jar" get-size total --apks="$RUNNER_TEMP/verification.apks" | tee app/build/reports/play-download-size.csv
+          python3 scripts/verify-play-bundle.py app/build/outputs/bundle/release/app-release.aab --bundletool "$RUNNER_TEMP/bundletool.jar" --download-size app/build/reports/play-download-size.csv "${signing_check[@]}" | tee app/build/reports/play-bundle.txt
+
+      - name: Remove temporary upload key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/speakeasy-upload.jks"
+
+      - name: Upload release bundle
+        uses: actions/upload-artifact@v5
+        with:
+          name: speakeasy-release-${{ inputs.signed_release == true && 'signed' || 'unsigned' }}
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+
+      - name: Upload verification reports
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: release-verification
+          path: |
+            app/build/reports/
+            app/build/test-results/
+          if-no-files-found: warn
+
+      - name: Upload submission materials
+        uses: actions/upload-artifact@v5
+        with:
+          name: play-submission-materials
+          path: |
+            docs/google-play/
+            app/src/main/assets/privacy-policy.txt
+          if-no-files-found: error
 
       - name: Upload APK
         uses: actions/upload-artifact@v5

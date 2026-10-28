@@ -327,6 +327,13 @@
                         android:accessibilityHeading="true"
                         android:text="@string/more_group_support" />
 
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/privacyPolicyButton"
+                        style="@style/SE.Button.Text"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/privacy_permissions" />
+
                     <LinearLayout
                         android:id="@+id/speechNotices"
                         style="@style/SE.Row"

@@ -11,12 +11,12 @@ object WysawygLogger {
 
     private const val TAG = "WYSAWYG"
     private const val MAX_LINES = 5000
-    private var defaultUncaughtExceptionHandler: Thread.UncaughtExceptionHandler? = null
     private var logFile: File? = null
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.UK)
 
-    fun init(context: Context) {
-        defaultUncaughtExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
+    @Synchronized fun init(context: Context) {
+        if (logFile != null) return
+        val defaultUncaughtExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
         logFile = File(context.filesDir, "wysawyg.log")
         logFile?.let {
             if (!it.exists()) it.createNewFile()
@@ -29,22 +29,22 @@ object WysawygLogger {
         }
     }
     fun d(msg: String) {
-        Log.d(TAG, msg)
+        if (BuildConfig.DEBUG) Log.d(TAG, msg)
         append("D", msg)
     }
 
     fun i(msg: String) {
-        Log.i(TAG, msg)
+        if (BuildConfig.DEBUG) Log.i(TAG, msg)
         append("I", msg)
     }
 
     fun w(msg: String) {
-        Log.w(TAG, msg)
+        if (BuildConfig.DEBUG) Log.w(TAG, msg)
         append("W", msg)
     }
 
     fun e(msg: String, throwable: Throwable? = null) {
-        Log.e(TAG, msg, throwable)
+        if (BuildConfig.DEBUG) Log.e(TAG, msg, throwable)
         val detail = throwable?.let { "\n${it.stackTraceToString()}" } ?: ""
         append("E", "$msg$detail")
     }

@@ -428,6 +428,13 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/privacyPolicyButton"
+            style="@style/SE.Button.Text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/privacy_permissions" />
+
         <TextView
             android:id="@+id/footerText"
             style="@style/SE.Meta"

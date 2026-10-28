@@ -1,16 +1,21 @@
 package com.cragnet.wysawyg
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class SettingsFormatTest {
-    @Test fun cloudKeyOnlyRoundTripLeavesUntouchedDefaultsAbsent() {
+    @Test fun exportsExcludeSecretsAndImportsCannotOptIntoCloud() {
         val stored = mapOf(TranscriptionMode.KEY to "CLOUD", "api_key" to "existing private key")
 
         val exported = SettingsFormat.export(stored)
 
-        assertEquals(stored + (SettingsFormat.VERSION_KEY to SettingsFormat.VERSION), exported)
-        assertEquals(stored, SettingsFormat.import(exported))
+        assertFalse(exported.containsKey("api_key"))
+        assertEquals(mapOf(TranscriptionMode.KEY to "CLOUD", SettingsFormat.VERSION_KEY to SettingsFormat.VERSION), exported)
+        assertEquals(mapOf(TranscriptionMode.KEY to "OFFLINE"), SettingsFormat.import(exported))
+        val malicious = stored + mapOf(SettingsFormat.VERSION_KEY to SettingsFormat.VERSION,
+            "accessibility_v1" to true, "cloud_origin_v1" to "https://example.test/")
+        assertEquals(mapOf(TranscriptionMode.KEY to "OFFLINE", "api_key" to "existing private key"), SettingsFormat.import(malicious))
     }
 
     @Test fun freshSettingsRoundTripDoesNotCreateCredentials() {
@@ -28,7 +33,7 @@ class SettingsFormatTest {
             "system_prompt" to ""
         )
 
-        assertEquals(stored, SettingsFormat.import(SettingsFormat.export(stored)))
+        assertEquals(stored - "api_key" + (TranscriptionMode.KEY to "OFFLINE"), SettingsFormat.import(SettingsFormat.export(stored)))
     }
 
     @Test fun existingCredentialValuesSurviveRoundTrip() {
@@ -40,7 +45,7 @@ class SettingsFormatTest {
             "system_prompt" to "Keep punctuation.\nUse British spelling."
         )
 
-        assertEquals(stored, SettingsFormat.import(SettingsFormat.export(stored)))
+        assertEquals(stored - "api_key" + (TranscriptionMode.KEY to "OFFLINE"), SettingsFormat.import(SettingsFormat.export(stored)))
     }
 
     @Test fun writingStyleChoicesRoundTripWithTheirTypes() {

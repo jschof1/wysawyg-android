@@ -98,7 +98,10 @@ class WysawygKeyboardService : InputMethodService() {
             render()
             stopAndTranscribe()
         } else if (recoveries.snapshot().canCapture) {
-            capture = client.admission.acquire() ?: run {
+            capture = try { client.admission.acquire() } catch (error: Exception) {
+                Toast.makeText(this, error.message ?: getString(R.string.cloud_setup_needed), Toast.LENGTH_LONG).show()
+                return
+            } ?: run {
                 Toast.makeText(this, "Finish the current dictation or resolve recovered transcripts first.", Toast.LENGTH_LONG).show()
                 return
             }

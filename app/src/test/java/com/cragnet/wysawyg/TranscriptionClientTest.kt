@@ -24,19 +24,40 @@ class TranscriptionClientTest {
             assertEquals(TranscriptionMode.OFFLINE, TranscriptionMode.fromStored(it))
         }
         assertEquals(TranscriptionMode.CLOUD, TranscriptionMode.fromStored("CLOUD"))
-        assertEquals(TranscriptionMode.OFFLINE, TranscriptionMode.fromImport(1, "CLOUD"))
     }
 
-    @Test fun settingsV2RoundTripsCloudAndLegacyCredentialsDoNotOptIn() {
+    @Test fun settingsCannotTransferUploadConsentOrExportTheApiKey() {
         val values = mapOf("api_key" to "existing private key", "alarma_url" to "https://example.test", "model" to "speech")
         val legacy = SettingsFormat.import(values)
         assertEquals("OFFLINE", legacy[TranscriptionMode.KEY])
         assertEquals(values["api_key"], legacy["api_key"])
         val cloud = SettingsFormat.export(values + (TranscriptionMode.KEY to "CLOUD"))
-        assertEquals("CLOUD", SettingsFormat.import(cloud)[TranscriptionMode.KEY])
-        assertEquals(values["api_key"], SettingsFormat.import(cloud)["api_key"])
+        assertEquals("OFFLINE", SettingsFormat.import(cloud)[TranscriptionMode.KEY])
+        assertFalse(SettingsFormat.import(cloud).containsKey("api_key"))
         assertEquals("OFFLINE", SettingsFormat.import(cloud + (TranscriptionMode.KEY to "future"))[TranscriptionMode.KEY])
         assertFalse(SettingsFormat.import(emptyMap<String, Any>()).containsKey("api_key"))
+    }
+
+    @Test fun captureFreezesTheBackendBeforeAudioIsRecorded() = runBlocking {
+        var selected = TranscriptionBackend { "provider A" }
+        val admission = CaptureAdmission(prepare = { selected }) { true }
+        val reservation = requireNotNull(admission.acquire())
+        selected = TranscriptionBackend { error("provider B must not receive the audio") }
+        val client = TranscriptionClient(admission, { error("must not re-read mode") },
+            TranscriptionRouter({ error("must not reselect offline") }, { error("must not reselect cloud") }))
+        assertEquals("provider A", client.transcribe(byteArrayOf(1), reservation))
+        assertNotNull(admission.acquire())
+    }
+
+    @Test fun deniedCaptureDoesNotHoldAReservation() {
+        var allowed = false
+        val admission = CaptureAdmission(prepare = {
+            check(allowed) { "Consent required" }
+            TranscriptionBackend { "local" }
+        }) { true }
+        assertTrue(runCatching { admission.acquire() }.isFailure)
+        allowed = true
+        assertNotNull(admission.acquire())
     }
 
     @Test fun offlineFactoryNeverConstructsCloudAndFailureNeverFallsBack() = runBlocking {

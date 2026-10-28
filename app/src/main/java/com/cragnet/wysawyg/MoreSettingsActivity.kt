@@ -30,6 +30,7 @@ class MoreSettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_more_settings)
+        applySystemInsets()
         findViewById<MaterialToolbar>(R.id.moreToolbar).setNavigationOnClickListener { finish() }
         exporter = SettingsExporter(this) { loadSettings() }
         urlInput = findViewById(R.id.alarmaUrl)
@@ -76,6 +77,10 @@ class MoreSettingsActivity : AppCompatActivity() {
             MaterialAlertDialogBuilder(this).setTitle(R.string.more_logs_clear_confirm)
                 .setPositiveButton(R.string.clear_log) { _, _ -> WysawygLogger.clear(this) }
                 .setNegativeButton(android.R.string.cancel, null).show()
+        }
+        findViewById<View>(R.id.privacyPolicyButton).setOnClickListener {
+            saveSettings()
+            PrivacyConsent.showPrivacy(this) { loadSettings() }
         }
         loadSettings()
     }
@@ -127,9 +132,24 @@ class MoreSettingsActivity : AppCompatActivity() {
     }
 
     private fun setMode(next: TranscriptionMode) {
-        mode = next
+        if (next == TranscriptionMode.OFFLINE) {
+            PrivacyConsent.revokeCloud(this)
+            mode = next
+            renderMode()
+            saveSettings()
+            return
+        }
         renderMode()
-        saveSettings()
+        val destination = try { CloudDestination.parse(urlInput.text.toString(), BuildConfig.DEBUG) }
+        catch (error: IllegalArgumentException) {
+            android.widget.Toast.makeText(this, error.message, android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
+        PrivacyConsent.requestCloud(this, destination, accepted = {
+            mode = TranscriptionMode.CLOUD
+            renderMode()
+            saveSettings()
+        }, declined = { renderMode() })
     }
 
     private fun renderMode() {
@@ -143,6 +163,10 @@ class MoreSettingsActivity : AppCompatActivity() {
     private fun saveSettings() {
         val fields = mapOf(MainActivity.PREF_ALARMA_URL to urlInput.text.toString(), MainActivity.PREF_API_KEY to apiKeyInput.text.toString(),
             MainActivity.PREF_MODEL to modelInput.text.toString(), MainActivity.PREF_SYSTEM_PROMPT to promptInput.text.toString())
+        if (mode == TranscriptionMode.CLOUD && !cloudAllowed(fields.getValue(MainActivity.PREF_ALARMA_URL))) {
+            mode = TranscriptionMode.OFFLINE
+            renderMode()
+        }
         getSharedPreferences(MainActivity.PREFS_NAME, MODE_PRIVATE).edit().apply {
             putString(TranscriptionMode.KEY, mode.name)
             fields.forEach { (key, value) -> if (value != loadedCredentials[key]) putString(key, value) }
@@ -155,8 +179,9 @@ class MoreSettingsActivity : AppCompatActivity() {
     private fun loadSettings() {
         val prefs = getSharedPreferences(MainActivity.PREFS_NAME, MODE_PRIVATE)
         mode = TranscriptionMode.fromStored(prefs.getString(TranscriptionMode.KEY, null))
-        renderMode()
         val url = prefs.getString(MainActivity.PREF_ALARMA_URL, "https://ollama.com/api/chat") ?: "https://ollama.com/api/chat"
+        if (mode == TranscriptionMode.CLOUD && !cloudAllowed(url)) mode = TranscriptionMode.OFFLINE
+        renderMode()
         urlInput.setText(url)
         apiKeyInput.setText(prefs.getString(MainActivity.PREF_API_KEY, ""))
         modelInput.setText(prefs.getString(MainActivity.PREF_MODEL, defaultModel(url)))
@@ -167,4 +192,8 @@ class MoreSettingsActivity : AppCompatActivity() {
     }
 
     private fun defaultModel(url: String) = if (url.contains("ollama.com")) "gemma4:e4b" else "gemma4:12b"
+
+    private fun cloudAllowed(url: String) = runCatching {
+        PrivacyConsent.hasCloud(this, CloudDestination.parse(url, BuildConfig.DEBUG))
+    }.getOrDefault(false)
 }

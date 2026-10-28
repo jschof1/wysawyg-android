@@ -41,6 +41,7 @@ class RecoveryControlsTest {
     private val keys = listOf(TranscriptionMode.KEY, MainActivity.PREF_OVERLAY_ENABLED, MainActivity.PREF_ALARMA_URL,
         MainActivity.PREF_API_KEY, MainActivity.PREF_MODEL)
     private var oldPrefs = emptyMap<String, Any?>()
+    private var oldCloudConsent: String? = null
     private var originalClipboard: ClipData? = null
     private var setup = false
     private lateinit var server: LocalTranscriptionServer
@@ -93,7 +94,12 @@ class RecoveryControlsTest {
         assertTrue("Resolve existing recoveries before this targeted test run", snapshot.items.isEmpty())
         assertFalse("Recovery storage must be readable", snapshot.unreadable)
         oldPrefs = keys.associateWith { prefs.all[it] }
+        assertTrue("Accept the in-app Accessibility disclosure before this suite", PrivacyConsent.hasAccessibility(context))
+        oldCloudConsent = context.getSharedPreferences("speakeasy_privacy", Context.MODE_PRIVATE)
+            .getString("cloud_origin_v1", null)
         server = LocalTranscriptionServer(words)
+        context.getSharedPreferences("speakeasy_privacy", Context.MODE_PRIVATE).edit()
+            .putString("cloud_origin_v1", "http://127.0.0.1:${server.port}/").commit()
         prefs.edit().putBoolean(MainActivity.PREF_OVERLAY_ENABLED, true)
             .putString(TranscriptionMode.KEY, TranscriptionMode.CLOUD.name)
             .putString(MainActivity.PREF_ALARMA_URL, "http://127.0.0.1:${server.port}/v1")
@@ -104,6 +110,8 @@ class RecoveryControlsTest {
 
     @After fun restore() {
         if (!setup) return
+        context.getSharedPreferences("speakeasy_privacy", Context.MODE_PRIVATE).edit()
+            .putString("cloud_origin_v1", oldCloudConsent).commit()
         server.release.countDown()
         server.close()
         instrumentation.runOnMainSync { OverlayService.pause(context) }

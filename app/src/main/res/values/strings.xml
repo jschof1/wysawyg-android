@@ -1,4 +1,15 @@
 <resources>
+    <string name="privacy_permissions">Privacy and permissions</string>
+    <string name="accessibility_consent_title">Allow access to the text box?</string>
+    <string name="accessibility_consent_body">Speakeasy uses Android Accessibility to see when your keyboard is open and read the active app, focused text box, its text, and cursor or selection. It uses this access to show the floating microphone, match your writing style, and insert the words you dictate at the cursor.\n\nThis access can include private messages and other sensitive text. Speakeasy skips password fields, keeps editor context on your phone, and does not use Accessibility to send messages or tap other controls.\n\nAgree to this use, then turn on Speakeasy in Android Accessibility settings. You can withdraw consent under Privacy and permissions. The optional Speakeasy keyboard works without this access.</string>
+    <string name="cloud_consent_title">Upload recordings for transcription?</string>
+    <string name="cloud_consent_body">When Cloud is selected, Speakeasy sends recordings you finish to %1$s for speech transcription. That provider receives your voice recording, API key, model choice, and any configured transcription prompt. It returns the transcript. Text from the app you are typing in stays on your phone.\n\nThe provider handles your recording under its own privacy and retention terms. Review those terms before you agree. You can switch back to On-device or withdraw consent under Privacy and permissions. There is no automatic cloud fallback.</string>
+    <string name="agree_continue">Agree and continue</string>
+    <string name="not_now">Not now</string>
+    <string name="consent_save_failed">Could not save your choice. Access remains off.</string>
+    <string name="revoke_accessibility">Turn off text access</string>
+    <string name="revoke_cloud">Turn off cloud</string>
+    <string name="cloud_setup_needed">Choose Cloud in More settings to review and allow this provider before recording.</string>
     <string name="app_name">Speakeasy</string>
     <string name="accessibility_service_description">Shows the dictation button while your keyboard is open and inserts speech directly at the cursor.</string>
     <string name="start_overlay">Turn on</string>
@@ -111,7 +122,7 @@
     <string name="more_cloud">Cloud</string>
     <string name="more_cloud_settings">Cloud server settings</string>
     <string name="more_group_backup">Settings backup</string>
-    <string name="more_export_help">Includes your cloud API key. Keep the file private.</string>
+    <string name="more_export_help">API keys and consent choices stay on this phone. Imports use on-device transcription.</string>
     <string name="more_group_support">Support</string>
     <string name="more_licences">Licences</string>
     <string name="more_licences_help">Speech model, Smart cleanup model and fonts</string>
