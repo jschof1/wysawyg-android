@@ -71,6 +71,8 @@ class TranscriptionClient(
         wavBytes: ByteArray,
         reservation: CaptureAdmission.Reservation = admission.acquire()
             ?: error("Finish the current dictation or resolve recovered transcripts first"),
+        /** Shapes the raw transcript for its destination. Failures keep the raw transcript. */
+        interpret: suspend (String) -> String = { it },
         onTranscribed: (String) -> Unit = {}
     ): String = suspendCancellableCoroutine { waiter ->
         try {
@@ -83,7 +85,8 @@ class TranscriptionClient(
             val selectedMode = mode()
             val work = scope.launch {
                 try {
-                    val text = serial.withLock { router.select(selectedMode).transcribe(wavBytes) }
+                    val raw = serial.withLock { router.select(selectedMode).transcribe(wavBytes) }
+                    val text = try { interpret(raw) } catch (e: Exception) { raw }
                     onTranscribed(text)
                     reservation.complete()
                     if (waiter.isActive) waiter.resume(text)

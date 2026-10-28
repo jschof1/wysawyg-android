@@ -12,13 +12,13 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         minSdk = 26
         targetSdk = 34
-        versionCode = 9
-        versionName = "1.4.0"
+        versionCode = 10
+        versionName = "1.5.0"
         ndk { abiFilters += "arm64-v8a" }
     }
 
     buildFeatures { aidl = true }
-    // AGP 8.5.0 cannot zip-align uncompressed JNI for 16 KiB devices. Compress/extract
+    // AGP 8.5 cannot zip-align uncompressed JNI for 16 KiB devices. Compress/extract
     // the small native libraries; their ELF segments are independently 16 KiB aligned.
     packaging { jniLibs.useLegacyPackaging = true }
     androidResources { noCompress += listOf("bin", "json", "txt") }
@@ -39,9 +39,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+}
+
+kotlin {
+    compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
 }
 
 dependencies {
@@ -56,6 +57,7 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.2")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.18.1")
 }
 
 val modelDirectory = providers.gradleProperty("phononModelDir")
@@ -91,5 +93,6 @@ val preparePhononJni by tasks.registering {
 }
 tasks.configureEach {
     if (name.matches(Regex("merge(Debug|Release)Assets"))) dependsOn(preparePhononAssets)
-    if (name.matches(Regex("merge(Debug|Release)NativeLibs"))) dependsOn(preparePhononJni)
+    // JniLibFolders snapshots the source folder, so the libraries must exist before it runs.
+    if (name.matches(Regex("merge(Debug|Release)(JniLibFolders|NativeLibs)"))) dependsOn(preparePhononJni)
 }

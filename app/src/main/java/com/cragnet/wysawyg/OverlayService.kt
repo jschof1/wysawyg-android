@@ -406,13 +406,19 @@ class OverlayService : Service() {
                 val audio = withContext(Dispatchers.IO) { audioRecorder.stop() }
                 showForeground(recording = false)
                 var staged: RecoveredTranscript? = null
-                client.transcribe(audio, reservation) { text ->
+                val shape = destination.dictationContext
+                val text = client.transcribe(audio, reservation, { Interpretation.apply(this@OverlayService, it, shape) }) { text ->
                     // Runs before the cancellable IO return, including a response arriving during Pause.
                     if (text.isNotBlank()) staged = recoveries.stage(text)
                 }
                 currentCoroutineContext().ensureActive()
                 val item = staged
-                if (item == null) toast("No speech detected") else completeTranscript(destination, item)
+                when {
+                    item != null -> completeTranscript(destination, item)
+                    // Only a spoken "new line": nothing worth recovering, so insert it directly.
+                    text.isNotEmpty() -> TextInjectorService.instance?.insertForDictation(destination, text)
+                    else -> toast("No speech detected")
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

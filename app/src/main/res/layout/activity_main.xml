@@ -1,155 +1,340 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent">
-<LinearLayout
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="16dp">
+    android:layout_height="match_parent"
+    android:fillViewport="true">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Wysawyg Settings"
-        android:textSize="20sp"
-        android:textStyle="bold" />
-
-    <RadioButton android:id="@+id/onDeviceMode" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:minHeight="48dp" android:layout_marginTop="12dp"
-        android:text="@string/on_device_transcription" android:textStyle="bold" android:checked="true" />
-    <TextView android:id="@+id/transcriptionStatus" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:text="@string/works_offline" android:paddingStart="8dp" />
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="@string/recording_limit" android:layout_marginTop="8dp" android:paddingStart="8dp" />
-
-    <Button android:id="@+id/tryDictationButton" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:text="Try dictation" />
-
-    <Button android:id="@+id/recoveredTranscriptsButton" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:text="@string/recovered_transcripts" />
-
-    <TextView android:id="@+id/backgroundStatus" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:layout_marginTop="12dp"
-        android:text="@string/background_paused" />
-
-    <Button android:id="@+id/allowBackgroundButton" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:text="@string/allow_background" />
-
-    <Button
-        android:id="@+id/startOverlayButton"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="@string/start_overlay" />
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="24dp"
+        android:paddingBottom="32dp">
 
-    <Button
-        android:id="@+id/stopOverlayButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/stop_overlay" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/app_title"
+            android:textAppearance="?attr/textAppearanceHeadlineMedium" />
 
-    <Button
-        android:id="@+id/enableAccessibilityButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Enable Accessibility Service" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="@string/app_tagline"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="?android:attr/textColorSecondary" />
 
-    <Button
-        android:id="@+id/enableKeyboardButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Enable WYSAWYG Keyboard" />
+        <!-- Floating dictation -->
+        <com.google.android.material.card.MaterialCardView
+            style="@style/SettingsCard"
+            android:layout_marginTop="20dp">
 
-    <Button
-        android:id="@+id/shareLogButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Share Log" />
+            <LinearLayout style="@style/SettingsCardBody">
 
-    <Button
-        android:id="@+id/viewLogButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="View Log" />
+                <TextView style="@style/SectionTitle" android:text="@string/section_dictation" />
 
-    <Button
-        android:id="@+id/clearLogButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Clear Log" />
+                <TextView
+                    android:id="@+id/backgroundStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/background_paused"
+                    android:textAppearance="?attr/textAppearanceBodyMedium" />
 
-    <Button android:id="@+id/advancedToggle" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:text="@string/advanced_show" />
-    <LinearLayout android:id="@+id/advancedSettings" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-        <RadioButton android:id="@+id/cloudMode" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:minHeight="48dp" android:text="@string/cloud_transcription" />
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="@string/cloud_upload_notice" />
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="Transcription server URL" />
-    <EditText
-        android:id="@+id/alarmaUrl"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="https://ollama.com/api/chat"
-        android:inputType="textUri" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="API Key" />
-    <EditText
-        android:id="@+id/apiKey"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="sk-... or leave blank"
-        android:inputType="textPassword" />
+                    <Button
+                        android:id="@+id/startOverlayButton"
+                        style="@style/Widget.Material3.Button"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="8dp"
+                        android:text="@string/start_overlay" />
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="@string/model" />
-    <EditText
-        android:id="@+id/modelName"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="gemma4:12b" />
+                    <Button
+                        android:id="@+id/stopOverlayButton"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/stop_overlay" />
+                </LinearLayout>
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="@string/system_prompt" />
-    <EditText
-        android:id="@+id/systemPrompt"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minLines="3"
-        android:gravity="top"
-        android:inputType="textMultiLine" />
+                <Button
+                    android:id="@+id/enableAccessibilityButton"
+                    style="@style/SettingsRowButton"
+                    android:text="@string/enable_accessibility" />
 
+                <Button
+                    android:id="@+id/allowBackgroundButton"
+                    style="@style/SettingsRowButton"
+                    android:text="@string/allow_background" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Try it -->
+        <com.google.android.material.card.MaterialCardView style="@style/SettingsCard">
+
+            <LinearLayout style="@style/SettingsCardBody">
+
+                <TextView style="@style/SectionTitle" android:text="@string/section_try" />
+
+                <Button
+                    android:id="@+id/tryDictationButton"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/try_dictation" />
+
+                <Button
+                    android:id="@+id/recoveredTranscriptsButton"
+                    style="@style/SettingsRowButton"
+                    android:text="@string/recovered_transcripts" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Writing style -->
+        <com.google.android.material.card.MaterialCardView style="@style/SettingsCard">
+
+            <LinearLayout style="@style/SettingsCardBody">
+
+                <TextView style="@style/SectionTitle" android:text="@string/section_style" />
+
+                <TextView
+                    style="@style/SectionHint"
+                    android:text="@string/style_hint" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/matchAppSwitch"
+                    style="@style/SettingsSwitch"
+                    android:text="@string/style_match_app" />
+
+                <LinearLayout
+                    android:id="@+id/styleRows"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/fillerSwitch"
+                    style="@style/SettingsSwitch"
+                    android:text="@string/style_fillers" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/commandsSwitch"
+                    style="@style/SettingsSwitch"
+                    android:text="@string/style_commands" />
+
+                <TextView
+                    style="@style/SectionHint"
+                    android:layout_marginTop="0dp"
+                    android:text="@string/style_commands_hint" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/smartCleanupSwitch"
+                    style="@style/SettingsSwitch"
+                    android:text="@string/style_smart" />
+
+                <TextView
+                    android:id="@+id/smartCleanupStatus"
+                    style="@style/SectionHint"
+                    android:layout_marginTop="0dp"
+                    android:text="@string/style_smart_hint" />
+
+                <com.google.android.material.progressindicator.LinearProgressIndicator
+                    android:id="@+id/smartCleanupProgress"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:visibility="gone" />
+
+                <Button
+                    android:id="@+id/smartCleanupAction"
+                    style="@style/SettingsRowButton"
+                    android:text="@string/style_smart_resume"
+                    android:visibility="gone" />
+
+                <Button
+                    android:id="@+id/stylePreviewButton"
+                    style="@style/SettingsRowButton"
+                    android:text="@string/style_preview" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Transcription -->
+        <com.google.android.material.card.MaterialCardView style="@style/SettingsCard">
+
+            <LinearLayout style="@style/SettingsCardBody">
+
+                <TextView style="@style/SectionTitle" android:text="@string/section_transcription" />
+
+                <RadioButton
+                    android:id="@+id/onDeviceMode"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:checked="true"
+                    android:minHeight="48dp"
+                    android:text="@string/on_device_transcription" />
+
+                <TextView
+                    android:id="@+id/transcriptionStatus"
+                    style="@style/SectionHint"
+                    android:layout_marginTop="0dp"
+                    android:paddingStart="32dp"
+                    android:text="@string/works_offline" />
+
+                <TextView
+                    style="@style/SectionHint"
+                    android:paddingStart="32dp"
+                    android:text="@string/recording_limit" />
+
+                <Button
+                    android:id="@+id/advancedToggle"
+                    style="@style/SettingsRowButton"
+                    android:text="@string/advanced_show" />
+
+                <LinearLayout
+                    android:id="@+id/advancedSettings"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <RadioButton
+                        android:id="@+id/cloudMode"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="48dp"
+                        android:text="@string/cloud_transcription" />
+
+                    <TextView
+                        style="@style/SectionHint"
+                        android:layout_marginTop="0dp"
+                        android:paddingStart="32dp"
+                        android:text="@string/cloud_upload_notice" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/SettingsField"
+                        android:hint="@string/server_url">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/alarmaUrl"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textUri" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/SettingsField"
+                        android:hint="@string/api_key"
+                        app:endIconMode="password_toggle">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/apiKey"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textPassword" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/SettingsField"
+                        android:hint="@string/model">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/modelName"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="text" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/SettingsField"
+                        android:hint="@string/system_prompt">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/systemPrompt"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="top"
+                            android:inputType="textMultiLine"
+                            android:minLines="3" />
+                    </com.google.android.material.textfield.TextInputLayout>
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- More -->
+        <com.google.android.material.card.MaterialCardView style="@style/SettingsCard">
+
+            <LinearLayout style="@style/SettingsCardBody">
+
+                <TextView style="@style/SectionTitle" android:text="@string/section_more" />
+
+                <Button
+                    android:id="@+id/enableKeyboardButton"
+                    style="@style/SettingsRowButton"
+                    android:text="@string/enable_keyboard" />
+
+                <Button
+                    android:id="@+id/exportSettingsButton"
+                    style="@style/SettingsRowButton"
+                    android:text="@string/export_settings" />
+
+                <Button
+                    android:id="@+id/importSettingsButton"
+                    style="@style/SettingsRowButton"
+                    android:text="@string/import_settings" />
+
+                <Button
+                    android:id="@+id/speechNotices"
+                    style="@style/SettingsRowButton"
+                    android:text="@string/speech_licences" />
+
+                <TextView
+                    style="@style/SectionHint"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/diagnostics" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/viewLogButton"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/view_log" />
+
+                    <Button
+                        android:id="@+id/shareLogButton"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/share_log" />
+
+                    <Button
+                        android:id="@+id/clearLogButton"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/clear_log" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
-    <Button android:id="@+id/speechNotices" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:text="@string/speech_licences" />
-
-    <Button
-        android:id="@+id/exportSettingsButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="Export Settings" />
-
-    <Button
-        android:id="@+id/importSettingsButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Import Settings" />
-
-</LinearLayout>
 </ScrollView>

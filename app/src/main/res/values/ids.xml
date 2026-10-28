@@ -1,4 +1,6 @@
 <resources>
     <item name="dictationTestEditor" type="id" />
     <item name="dictationTestSecondEditor" type="id" />
+    <item name="stylePreviewInput" type="id" />
+    <item name="stylePreviewOutput" type="id" />
 </resources>

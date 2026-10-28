@@ -31,4 +31,8 @@ class DictationTextTest {
     @Test fun emptyTranscriptLeavesExistingTextUntouched() {
         assertEquals("Keep this", DictationText.insert("Keep this", 0, 9, "  ").text)
     }
+    @Test fun keepsSpokenLineBreaksWithoutExtraSpaces() {
+        assertEquals("Hello\n\nWorld", DictationText.insert("HelloWorld", 5, 5, "\n\n").text)
+        assertEquals("Hi.\nThere", DictationText.insert("Hi.", 3, 3, "\nThere").text)
+    }
 }

@@ -46,7 +46,8 @@ class RecoveryControlsTest {
     private lateinit var server: LocalTranscriptionServer
     private val start = By.pkg("com.cragnet.wysawyg").desc("Start dictation")
     private val finish = By.pkg("com.cragnet.wysawyg").desc("Finish dictation. Hold to cancel")
-    private val words = "WYSAWYG recovery test words"
+    // A finished sentence, so the destination writing style leaves it unchanged.
+    private val words = "WYSAWYG recovery test words."
     private val retainRecoveryForRestart = InstrumentationRegistry.getArguments()
         .getString("retainRecoveryForRestart") == "true"
     private fun res(name: String) = By.res(context.packageName, name)
