@@ -4,11 +4,10 @@ Speakeasy 1.7.0 uses Play package `net.aspectstudio.speakeasy`, version code 12,
 minimum Android 8/API 26, and target Android 16/API 36. It supports ARM64 phones.
 Debug builds retain `com.cragnet.wysawyg` for the existing sideloaded app.
 
-Jack owns the developer account and has authorised publication. Account
-registration is in progress under his Google account. He confirmed that he is a
-sole trader, so registration is using the individual route. The public developer
-name is **Aspect Studio Software**, which passed Google's name check. Registration,
-identity verification, the required test track and review are still outstanding.
+Jack owns the developer account and has authorised publication. The individual
+account is registered and its USD 25 payment is confirmed. The live Console shows
+**Aspect Studio Software** as the publisher. Identity, real Android device and
+phone verification, the required test track and review are still outstanding.
 A build passing here does not mean Google has approved the app or granted
 production access.
 
@@ -103,30 +102,21 @@ The Play package ID is `net.aspectstudio.speakeasy`, under Aspect Studio's domai
 Confirm its availability at the first Play upload. The Kotlin/native namespace
 and debug package remain `com.cragnet.wysawyg`.
 
-1. Finish the individual Play developer account registration and identity
-   verification. Use **Aspect Studio Software** as the public developer name,
-   confirmed by Jack after Google rejected **Aspect Studio** as already registered.
-   The public name can differ from the verified individual's legal name. Jack
-   approved both registration agreements and the USD 25 fee on 29 October 2026.
-   Both automated and owner-attempted checkout stalled. After the reset, Jack
-   linked the profiles again. The existing signup now has every section filled
-   through Terms with the same confirmed answers and agreements; its final
-   payment dialog was blank. Jack then cancelled the tab's ChatGPT debugging
-   banner and reported that the payment form opens, but is not yet paid. Keep
-   browser automation disconnected while he pays and completes any bank
-   verification directly in Google. This supports automation involvement in the
-   stall, but does not establish its exact cause. Continue this registration
-   from the payment result rather than starting another registration.
-   Google accepted the exact approved support report and both screenshots through
-   `https://play.google.com/console/u/0/help` on 29 October 2026. Its email
-   acknowledgement supplied a case reference, kept with the private receipt.
-   Google says it will reply within two working days, although some cases take
-   longer. Check for a reply by 2 November 2026 if recovery remains blocked. Verify
-   the actual payment receipt and account registration before upload. Preserve
-   the existing approval for the unchanged action; approval is not payment proof.
+1. Complete the registered individual account's verification. Google's receipt
+   confirms one USD 25 Developer Registration Fee purchase on 29 October 2026 at
+   12:29:29 GMT, and the live Console opens the **Aspect Studio Software** personal
+   account. Do not repeat the payment or start another registration. The dashboard
+   requires identity verification, access to a real Android device through the
+   Play Console mobile app, and phone verification after identity approval.
+   **Create app is disabled until the account verifications are complete.** Jack
+   completes identity documents directly inside Google; leave browser automation
+   disconnected while he does so if the embedded verification panel stalls.
+   Payment and dashboard evidence are kept privately. The earlier approved support
+   case remains available if recovery is needed; do not submit another report
+   without a current approved draft. See the verification record for the history.
    Google also displays the verified legal name, country and developer email for
    individual accounts. Check the [identity information requirements](https://support.google.com/googleplay/android-developer/answer/13628312)
-   and review the final registration details before accepting the agreement.
+   and verify the public profile before publication.
 2. Create a free productivity app named **Speakeasy**. Confirm package
    `net.aspectstudio.speakeasy` is available before the first upload. The package name
    becomes permanent when registered with Play.

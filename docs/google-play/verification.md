@@ -123,12 +123,23 @@ in Google. This supports automation involvement in the stall; the exact technica
 cause remains unproved. Payment, account creation and the Console dashboard still
 need confirmation. Resume from that result without restarting signup.
 
-His approval of both agreements and the USD 25 fee remains valid for the unchanged
-action. No payment receipt, completed registration or app upload has been verified.
-Linking a payments profile does not establish that Google's identity verification
-is complete.
-Remaining actions are account registration and identity verification, first upload
-of the chosen public package ID, device acceptance and media capture,
+Google Payments subsequently confirmed the Developer Registration Fee purchase:
+USD 25 total, with purchase time 29 October 2026 at 12:29:29 GMT. The receipt was
+read in the intended owner's mailbox and is recorded privately without card
+details. Jack's later message that the purchase was already completed matches
+that receipt. Do not pay again or start another registration.
+
+A fresh Console tab opened the account chooser and then the live
+**Aspect Studio Software** personal-account dashboard. Registration is complete.
+The dashboard requires identity verification, verification of access to a real
+Android device through the Play Console mobile app, and contact-phone verification
+after Google's identity approval. **Create app is disabled until account
+verifications are complete.** Identity verification was opened for Jack to complete
+directly inside Google. The dashboard screenshot and payment receipt metadata are
+private release evidence; no identity documents were collected by the agent.
+
+Remaining actions are identity, Android device and phone verification, first upload
+of the chosen public package ID, app device acceptance and media capture,
 Console declarations, and the individual account's closed test and
 production-access application. Follow the
 [release guide](README.md) before submission.
