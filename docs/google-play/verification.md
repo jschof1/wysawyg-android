@@ -31,10 +31,16 @@ Current [signed AAB](https://github.com/jschof1/wysawyg-android/actions/runs/408
 [verification reports](https://github.com/jschof1/wysawyg-android/actions/runs/40881123380/artifacts/12900572177),
 [device-test APK](https://github.com/jschof1/wysawyg-android/actions/runs/40881123380/artifacts/12901125973),
 and [submission packet](https://github.com/jschof1/wysawyg-android/actions/runs/40881123380/artifacts/12901235863).
-The report, submission and device-test archives were saved on the verified Jack
-Drive and matched GitHub's SHA-256 digests; their ZIP CRCs also passed. Signed-bundle
-preservation is in progress under
-`Mac-Offload/Play-Releases/speakeasy-1.7.0-03134d3`.
+The signed bundle, report, submission and device-test archives were saved on the
+verified Jack Drive under
+`Mac-Offload/Play-Releases/speakeasy-1.7.0-03134d3` and matched GitHub's SHA-256
+digests. The smaller archives' ZIP CRCs passed. The signed archive SHA-256 is
+`926d758783628d719d060771eb801f5ec2fb2a6e92abcb7d72b9e5de12b68529`.
+The extracted `speakeasy-1.7.0-upload.aab` is 202,874,896 bytes, SHA-256
+`6724173ec0a1120f284870a05e99c04fb9b660059c4bcf813fc6fd4c1e9d77dd`.
+Its policy matches the current source and its signature block is present; full
+signature and public-certificate verification ran in CI. The smaller current
+submission packet and JSON receipts are kept beside the bundle.
 The updated policy SHA-256 is
 `57159a5104c897d4d6540958a076534570fd088a6cec0a3df9c684ce40a2bee8`.
 

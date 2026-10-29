@@ -1,11 +1,13 @@
 # First closed test
 
-Speakeasy is being registered under an individual developer account. Google
+Speakeasy will be published from the new individual developer account. Google
 requires at least 12 testers opted into a closed test continuously for 14 days
 before the account can apply for production access. Meeting that minimum does
 not itself grant production access or approve the app.
 
-No test has started. The account is not registered, and no Play test link exists.
+No test has started. The publisher account is registered and paid; submitted
+identity documents are under Google review. Phone verification and app creation
+remain locked until account checks complete. No Play test link exists.
 
 ## Start the test
 
