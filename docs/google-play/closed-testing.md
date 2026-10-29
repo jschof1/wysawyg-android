@@ -13,9 +13,10 @@ Jack confirmed on 29 October 2026 that testers need to be recruited. Use the
 [recruitment plan and draft invitation](tester-recruitment.md) to collect interest
 while account review is pending. Aim for about 20 willing testers; Google's
 minimum remains 12 qualifying testers. Jack selected public Android testing
-communities, and r/AndroidClosedTesting is the proposed first audience. The exact
-first post awaits his approval. No invitations have been sent, and no test start
-date is claimed.
+communities. He approved the first post for r/AndroidClosedTesting, and it is
+[published](https://www.reddit.com/r/AndroidClosedTesting/comments/1xilzfy/looking_for_android_testers_for_speakeasy/).
+Its full text was verified while signed out on 29 October 2026. No confirmed
+tester roster or Play opt-ins have been verified, and no test start date is claimed.
 
 ## Start the test
 

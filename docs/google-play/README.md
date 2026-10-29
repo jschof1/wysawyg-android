@@ -185,9 +185,9 @@ Use the [closed-test checklist and feedback record](closed-testing.md) to start
 the test and retain evidence for the production-access application. No test
 period or production eligibility is claimed until the Console confirms it.
 Jack needs to recruit testers and has selected public Android testing communities.
-The [recruitment plan](tester-recruitment.md) contains the first proposed
-r/AndroidClosedTesting post, enrollment steps and feedback instructions. The exact
-public post still requires his approval before publication.
+The [recruitment plan](tester-recruitment.md) records the first approved
+r/AndroidClosedTesting post, enrollment steps and feedback instructions. The post
+is publicly visible; tester recruitment and Play opt-ins remain unverified.
 
 ## References
 

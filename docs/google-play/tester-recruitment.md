@@ -6,6 +6,11 @@ showed Google's identity review pending, phone verification locked and app
 creation disabled. No Play test link exists. An expression of interest is not
 a Play opt-in and does not start a tester's qualifying period.
 
+The first [public recruitment post](https://www.reddit.com/r/AndroidClosedTesting/comments/1xilzfy/looking_for_android_testers_for_speakeasy/)
+is published under u/Strict_Ad_6644. Its full text was visible while signed out on
+29 October 2026 at 14:49 UTC and matched Jack's approved draft, ending in "Cheers".
+Publication does not establish recruited testers or Play opt-ins.
+
 ## Recruitment goal and route
 
 Aim for about 20 willing testers to give some margin above Google's minimum of
@@ -15,8 +20,8 @@ about actual use, feedback and changes made before deciding production access.
 
 Start with people who want to dictate English notes or messages on Android.
 Jack selected public Android testing communities on 29 October 2026. Prepare the
-first individual text post for r/AndroidClosedTesting, with the exact invitation
-below awaiting his approval. No personal-contact outreach is planned. Two public
+first individual text post for r/AndroidClosedTesting. Jack approved it and it is
+published as recorded below. No personal-contact outreach is planned. Two public
 communities were checked on 29 October 2026:
 
 - [r/AndroidClosedTesting](https://www.reddit.com/r/AndroidClosedTesting/)
@@ -28,7 +33,8 @@ The current r/AndroidClosedTesting rules prohibit links to other subreddits; use
 an individual post without cross-community links. Confirm any additional posting
 requirements in its live composer before publication. If they change the text or
 audience, show the revised complete draft and obtain fresh approval.
-The early-interest draft has not yet been submitted or accepted by moderators.
+The first post is publicly visible; no removal or moderation hold was shown at
+verification. This does not guarantee it will remain visible indefinitely.
 
 r/AndroidAppTesters expects reciprocal testing and official-store distribution
 links, so defer that route until a real Play test exists and Jack has chosen
@@ -41,25 +47,31 @@ Android 8 or later. Prioritise a mixture of phones, including Android 15 and 16.
 Use real phones for acceptance evidence. The first test needs no cloud account,
 API key or subscription. The current estimated app download is about 202 MB.
 
-## Draft invitation for early interest
+## First recruitment post
 
-This draft can be used before the Play test exists. It is not sent or approved.
-The approval packet is:
+This invitation can be used before the Play test exists. Jack approved the full
+revised post in the current chat on 29 October 2026, with "Cheers" as its sign-off.
+The post is published, and its complete body matches the signed-out view.
+The approved and executed route was:
 
 - Audience: public members and visitors of r/AndroidClosedTesting.
 - Route: one new Reddit text post in
   [r/AndroidClosedTesting](https://www.reddit.com/r/AndroidClosedTesting/).
-- Sender: Jack's existing Reddit account; confirm its identity in the signed-in
-  composer before posting. Do not create an account or accept new terms silently.
+- Sender: Jack's existing account, u/Strict_Ad_6644. Account ownership was checked
+  in Reddit's settings; no account settings or sign-in connections were changed.
 - Attachments: none.
-- Approval state: audience category chosen; this exact post is not yet approved.
+- Approval state: Jack approved this post with the requested "Cheers" sign-off.
+  One post was submitted and verified, including its public signed-out view.
+- Published URL:
+  https://www.reddit.com/r/AndroidClosedTesting/comments/1xilzfy/looking_for_android_testers_for_speakeasy/
 
-Show Jack this audience, route, title and entire body before requesting approval.
-After approval, confirm any composer requirements and the sender. Record the
-actual public post URL and visible publication/moderation status. A submitted
-post awaiting moderation is not confirmed visible or evidence of recruited users.
+The current chat contains the complete reviewed post and Jack's instruction,
+"just say cheers at the end and yeah do the message". This approval covers the
+single post above. Further posts, comments and direct messages need approval of
+their own exact audience, route and wording. Keep the publication receipt and
+screenshot in the private release evidence; do not duplicate the post on retry.
 
-Suggested public title: Looking for Android testers for Speakeasy
+Post title: Looking for Android testers for Speakeasy
 
 > I've been working on Speakeasy, an Android app that turns English speech into
 > text. It has a floating mic you can use alongside your usual keyboard.
@@ -83,7 +95,7 @@ Suggested public title: Looking for Android testers for Speakeasy
 > DM me with your phone model and Android version if you'd like to help.
 > No need to send recordings or private text.
 >
-> Jack, Aspect Studio Software
+> Cheers
 
 For a direct invitation, use the same body without the public title after the
 specific recipient and route are selected. A draft for one route is not approval
@@ -91,8 +103,8 @@ to send it through another route or to other people.
 
 ## From interest to a real closed test
 
-1. After Jack approves a specific invitation, send or post it once and retain the
-   actual sent message or post URL. No recruitment message has been sent yet.
+1. The first approved recruitment post is published at the URL above. Retain that
+   URL and the private receipt. Do not repost it or treat views as recruited users.
 2. Record willing testers privately and check device suitability. Do not infer
    sign-up from a reaction, upvote or install count. Do not commit names or email
    addresses to this public repository.
@@ -147,6 +159,11 @@ Send these with the verified joining instructions after approval:
 
 Follow-up reminders are drafts until Jack approves their actual recipients,
 route and complete wording. Do not create automatic sends from this plan.
+
+Jack and the owning release thread should check the post and Reddit DMs manually
+on 30 October 2026, or when Google approves the account if that happens sooner.
+Record willing testers privately and prepare exact replies for approval. No
+automatic monitor, scheduled check or follow-up message has been created.
 
 ## Evidence needed before applying for production
 
