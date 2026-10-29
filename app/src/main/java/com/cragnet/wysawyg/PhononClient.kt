@@ -20,7 +20,7 @@ class PhononClient(
 ) : TranscriptionBackend {
     companion object { private val ids = AtomicLong() }
     override suspend fun transcribe(wavBytes: ByteArray): String = withContext(Dispatchers.IO) {
-        require(wavBytes.size in 44..PrivateFiles.MAX_WAV_BYTES) { "Recording must be at most 5 minutes" }
+        require(wavBytes.size in 44..PrivateFiles.MAX_WAV_BYTES) { "Transcription segment must be at most 5 minutes" }
         val id = ids.incrementAndGet()
         val result = CompletableDeferred<String>()
         val completion = RequestCompletion<String>(id) { value ->

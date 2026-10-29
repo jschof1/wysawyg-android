@@ -113,12 +113,15 @@ class BackgroundLifecycleTest {
                 val button = requireNotNull(device.wait(Until.findObject(By.pkg(context.packageName).desc("Start dictation")), 8000))
                 SystemClock.sleep(500)
                 button.click()
-                val finish = By.pkg(context.packageName).desc("Finish dictation. Hold to cancel")
+                val finish = By.pkg(context.packageName).desc("Stop recording. Hold to stop and keep audio")
                 assertTrue("A tap must start a real recording after background recovery", device.wait(Until.hasObject(finish), 5000))
                 assertTrue("Recording must declare microphone access", microphoneServiceActive())
                 requireNotNull(device.findObject(finish)).longClick()
-                assertTrue(device.wait(Until.hasObject(By.pkg(context.packageName).desc("Start dictation")), 5000))
-                assertFalse("Cancel must release microphone foreground access", microphoneServiceActive())
+                assertTrue(await { RecordingSessions.state.value.phase == RecordingPhase.INTERRUPTED })
+                assertFalse("Stop and keep must release microphone foreground access", microphoneServiceActive())
+                assertNotNull(RecordingSessions.store(context).pending())
+                scenario.onActivity { RecordingSessions.command(it, OverlayService.DISCARD) }
+                assertTrue(await { RecordingSessions.store(context).pending() == null })
             } finally {
                 scenario.onActivity { it.stopService(Intent(it, OverlayService::class.java)) }
                 prefs.edit().putBoolean(MainActivity.PREF_OVERLAY_ENABLED, previous).commit()

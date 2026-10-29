@@ -54,17 +54,20 @@ password exclusion, and withdrawal. Do not submit a design mock-up or stale vide
 `microphone`:
 
 > Captures speech only after the user taps Start dictation. A visible recording
-> control offers Stop and Cancel. The microphone is released before transcription.
-> Recordings are limited to five minutes. Startup and idle mode do not activate
-> this foreground service type.
+> control and notification offer Stop. Capture continues across keyboard and screen
+> changes until explicitly stopped or interrupted by Android. Stop & keep saves audio
+> without transcription. The microphone is released before transcription. Startup,
+> recovery and idle mode never activate the microphone automatically.
 
 `specialUse`:
 
 > Keeps a user-enabled floating dictation control available when an eligible text
 > field and keyboard are visible. The control works with the user's existing
-> keyboard. An ongoing notification exposes Pause when notifications are allowed;
-> Home also offers Pause. Pausing persists across restarts. The service remains
-> idle until the user explicitly starts recording.
+> keyboard. The same service owns capture for the optional keyboard even without
+> overlay permission. The notification exposes Stop during capture and Pause new
+> recordings while idle; interrupted audio exposes Recover. Pause persists across
+> restarts and does not stop an existing capture. The service remains idle until
+> the user explicitly starts recording.
 
 Supply Google's requested video/evidence and check the relevant Console use-case
 choices. Google must approve the special-use case; the manifest is not approval.

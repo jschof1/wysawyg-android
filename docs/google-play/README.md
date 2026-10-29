@@ -150,18 +150,18 @@ structure alone does not prove runtime compatibility.
 | Return to Home after declining | No repeated or stacked disclosure; the setup row remains available |
 | Enable service from Android settings first | Service remains inert until the separate in-app disclosure is accepted |
 | Accessibility accept | System settings open after acceptance; Gboard remains selected; floating mic appears only with an eligible field and keyboard |
-| Real speech | Start, Stop, and insertion work in the scratch editor and a real app; Cancel sends and inserts nothing |
-| Password field and target change | Mic is hidden for password fields; a changed field receives no stale transcript |
+| Real speech | Start, Stop, and insertion work in the scratch editor and a real app; Stop & keep retains audio without uploads or insertion |
+| Password field and target change | Password fields cannot start recording; existing recording keeps Stop and a changed field receives no stale transcript |
 | Cloud without consent | On-device processing; zero cloud requests |
 | Cloud accept | Disclosure names the provider; only an explicitly finished recording reaches that provider |
 | Change provider, switch mode during capture, import old settings | No recording is redirected to a new provider; imported settings use on-device mode |
 | Withdraw consent | Accessibility stops reading and inserting; future cloud requests are blocked |
-| Pause, reboot, update, process restart | Pause persists; an enabled service may resume idle; microphone never starts automatically |
+| Pause, reboot, update, process restart | Pause prevents new starts but keeps active recording; restart exposes retained audio and never restarts the microphone |
 | Background service start on Android 15/16 | No crash or repeated startup failure; the mic becomes available through a permitted start path |
-| First run on Android 13+ | Notification permission is offered once after service startup; allow shows Pause in the shade, decline leaves Pause available on Home |
+| First run on Android 13+ | Notification permission is offered once after service startup; allow shows Stop during capture and Pause new recordings while idle; without overlays, capture requires notifications |
 | System bars, keyboard, rotation, large text | All controls remain visible and usable in light and dark themes |
-| Recovery | Saved text survives process death; Copy and Insert work; discard/expiry and storage failure are handled visibly |
-| Optional keyboard | On-device recording and insertion work without Accessibility consent |
+| Recovery | Written audio survives process death; Retry on device and confirmed Discard are available; completed text stages durably before audio deletion; Copy/Insert and text expiry remain visible |
+| Optional keyboard | Uses the same foreground owner without Accessibility or overlay permission; hide/navigation/destruction keep capture, notification Stop works |
 | Smart cleanup | Download is explicit; cleanup runs offline after download; model failure preserves words |
 
 Film the Accessibility disclosure, decline, acceptance, Android permission flow,

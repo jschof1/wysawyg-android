@@ -37,7 +37,7 @@ class OllamaClient(private val context: Context) {
         val prefs = context.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE)
         check(PrivacyConsent.hasCloud(context, approved.destination)) { context.getString(R.string.cloud_setup_needed) }
         check(TranscriptionMode.fromStored(prefs.getString(TranscriptionMode.KEY, null)) == TranscriptionMode.CLOUD &&
-            configuration() == approved) { "Cloud settings changed. Record again using the current settings." }
+            configuration() == approved) { "Cloud settings changed. Audio kept; retry on device from Recovered transcripts." }
         val url = approved.destination.url
         val apiKey = approved.apiKey
         val model = approved.model
@@ -83,7 +83,7 @@ class OllamaClient(private val context: Context) {
             put("messages", messages)
             put("options", JSONObject().apply {
                 put("temperature", 0.1)
-                put("num_predict", 256)
+                put("num_predict", 1024)
             })
         }
 

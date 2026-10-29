@@ -41,11 +41,11 @@ version, date and result. Preserve the tester's usual keyboard.
 | Decline Accessibility, then return Home | No repeated disclosure or active text access |
 | Accept the separate disclosure and enable floating dictation | Usual keyboard remains selected; mic appears for an editable field |
 | Dictate a short note in the scratch editor and a real app | Start, Stop and insertion work; note accuracy and time taken |
-| Cancel a recording | No text is inserted and no recording is sent |
-| Move to another text field during recording | No stale transcript reaches the changed target; recovery is usable |
+| Stop & keep a recording | No text is inserted or uploaded; saved audio offers Retry on device and confirmed Discard |
+| Hide keyboard, change field/screen, return, or destroy the optional IME during recording | Same session continues with visible Stop; no stale transcript reaches a changed target |
 | Copy, insert and discard a recovered transcript | Each control works and retention is explained |
 | Open an Android-identified password field | Floating mic is hidden |
-| Pause, restart the app and restart the phone | Pause persists; recording never starts automatically |
+| Pause, interrupt/restart the app and restart the phone | Pause keeps an active capture running; process interruption preserves written audio and never restarts the mic |
 | Decline text access and use the optional Speakeasy keyboard | On-device dictation and insertion still work |
 
 Run the full release acceptance table as well. Cloud tests require a deliberately

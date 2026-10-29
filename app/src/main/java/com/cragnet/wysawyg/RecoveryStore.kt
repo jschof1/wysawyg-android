@@ -60,7 +60,7 @@ class RecoveryStore(private val file: File, private val now: () -> Long = System
                         val size = input.readInt()
                         require(size in 1..MAX_BYTES && size <= input.available())
                         val text = ByteArray(size).also { input.readFully(it) }.toString(Charsets.UTF_8)
-                        require(id.isNotBlank() && text.isNotBlank())
+                        require(id.isNotBlank() && (text.isNotBlank() || text.contains('\n')))
                         RecoveredTranscript(id, text, created)
                     }
                     require(input.available() == 0 && loaded.map { it.id }.toSet().size == count)
@@ -79,12 +79,28 @@ class RecoveryStore(private val file: File, private val now: () -> Long = System
         return Snapshot(items.toList(), items.map { it.id }.toSet() - savedIds, unreadable, writeFailed, expiredCount)
     }
 
-    @Synchronized fun stage(text: String): RecoveredTranscript {
-        require(text.isNotBlank())
+    @Synchronized fun stage(text: String, id: String = UUID.randomUUID().toString()): RecoveredTranscript {
+        require(text.isNotBlank() || text.contains('\n'))
         expire()
-        val item = RecoveredTranscript(UUID.randomUUID().toString(), text, now())
+        items.firstOrNull { it.id == id }?.let {
+            if (id !in savedIds) persist()
+            return it
+        }
+        val item = RecoveredTranscript(id, text, now())
         items.add(item)
         persist()
+        return item
+    }
+
+    /** Audio is disposable only after the entire transcript has been committed to durable storage. */
+    fun stageRecording(text: String, audio: DurablePcmStore.Capture, audioStore: DurablePcmStore): RecoveredTranscript {
+        check(text.isNotBlank() || text.contains('\n')) { "No speech detected. Audio kept for retry or discard." }
+        val item = stage(text, audio.id)
+        val saved = snapshot()
+        check(item.id !in saved.unsavedIds && !saved.unreadable && !saved.writeFailed) {
+            "Text could not be saved. Audio kept; free storage and retry."
+        }
+        check(audioStore.remove(audio)) { "Text saved, but audio removal failed. Discard audio to finish cleanup." }
         return item
     }
 

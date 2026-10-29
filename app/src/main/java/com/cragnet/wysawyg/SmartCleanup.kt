@@ -177,7 +177,7 @@ class SmartCleanup private constructor(private val app: Context) {
 
     /** Returns better punctuated text, or null when the model is unavailable, slow or unsafe. */
     suspend fun punctuate(text: String): String? {
-        if (!installed) return null
+        if (!installed || text.length > 600) return null
         val started = System.currentTimeMillis()
         val request = Pending(text)
         val work = scope.async { lock.withLock { if (request.expired) null else generate(request) } }

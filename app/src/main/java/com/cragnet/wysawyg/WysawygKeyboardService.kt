@@ -1,72 +1,67 @@
 package com.cragnet.wysawyg
 
+import android.content.Intent
 import android.inputmethodservice.InputMethodService
 import android.text.InputType
 import android.view.View
 import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputConnection
+import android.widget.Button
 import android.widget.ImageButton
 import android.widget.LinearLayout
-import android.widget.Toast
-import kotlinx.coroutines.CancellationException
+import android.widget.TextView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.withContext
+import java.lang.ref.WeakReference
 
+/** Optional control surface. The shared foreground service owns recording and transcription. */
 class WysawygKeyboardService : InputMethodService() {
-    private lateinit var audioRecorder: AudioRecorder
-    private lateinit var client: TranscriptionClient
-    private var capture: CaptureAdmission.Reservation? = null
-    private var limitMonitor: Job? = null
-    private lateinit var recoveries: RecoveryStore
-    private var isRecording = false
-    private var busy = false
     private var eligible = false
     private var inputGeneration = 0
-    private var recordingGeneration = 0
-    private var recordingConnection: InputConnection? = null
     private var editorPackage: String? = null
     private var editorType = InputType.TYPE_NULL
-    private var recordingContext = DictationContext()
     private var recordButton: ImageButton? = null
+    private var status: TextView? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     override fun onCreate() {
         super.onCreate()
         WysawygLogger.init(this)
-        audioRecorder = AudioRecorder(this)
-        client = Transcriptions.get(this)
-        recoveries = Recoveries.get(this)
+        RecordingSessions.store(this)
+        scope.launch { RecordingSessions.state.collect { render() } }
     }
 
-    override fun onCreateInputView(): View {
-        val layout = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(16, 16, 16, 16)
-        }
-        recordButton = ImageButton(this).apply {
-            setImageResource(android.R.drawable.ic_btn_speak_now)
+    override fun onCreateInputView(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        setPadding(16, 16, 16, 16)
+        recordButton = ImageButton(this@WysawygKeyboardService).apply {
             setBackgroundResource(R.drawable.circle_button)
-            contentDescription = "Start dictation"
             layoutParams = LinearLayout.LayoutParams(128, 128)
             setOnClickListener { toggleRecording() }
         }
-        layout.addView(recordButton)
-        layout.addView(android.widget.TextView(this).apply { text = "Recordings finish after 5 minutes" })
-        return layout
+        addView(recordButton)
+        status = TextView(this@WysawygKeyboardService)
+        addView(status, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        addView(Button(this@WysawygKeyboardService).apply {
+            text = "Recover"
+            setOnClickListener {
+                startActivity(Intent(this@WysawygKeyboardService, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }
+        })
+        render()
+    }
+
+    override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
+        super.onStartInput(info, restarting)
+        inputGeneration++
+        eligible = false
+        render()
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
-        cancelCapture()
         inputGeneration++
         val type = info?.inputType ?: InputType.TYPE_NULL
         val variation = type and InputType.TYPE_MASK_VARIATION
@@ -76,133 +71,52 @@ class WysawygKeyboardService : InputMethodService() {
             InputType.TYPE_CLASS_NUMBER -> variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD
             else -> false
         }
-        eligible = type != InputType.TYPE_NULL && !password
+        eligible = type != InputType.TYPE_NULL && !password && currentInputConnection != null
         editorPackage = info?.packageName
         editorType = type
         render()
     }
 
     private fun render() {
+        val session = RecordingSessions.state.value
         recordButton?.apply {
-            setImageResource(if (isRecording) android.R.drawable.ic_media_pause else android.R.drawable.ic_btn_speak_now)
-            contentDescription = if (isRecording) "Finish dictation" else "Start dictation"
-            isEnabled = eligible && !busy && (isRecording || recoveries.snapshot().canCapture)
+            setImageResource(if (session.canStop) android.R.drawable.ic_media_pause else android.R.drawable.ic_btn_speak_now)
+            contentDescription = if (session.canStop) "Stop recording" else "Start dictation"
+            isEnabled = session.canStop || session.canStart(eligible, Recoveries.get(this@WysawygKeyboardService).snapshot().canCapture)
+        }
+        status?.text = when (session.phase) {
+            RecordingPhase.CAPTURING -> "Recording continues until Stop, even when the keyboard closes."
+            RecordingPhase.STARTING -> "Preparing microphone…"
+            RecordingPhase.TRANSCRIBING -> "Transcribing. Audio kept until text is saved."
+            RecordingPhase.INTERRUPTED -> "Recording kept. Open Recover to retry on device or discard."
+            RecordingPhase.IDLE -> "Tap to record. Stop is also in the notification."
         }
     }
 
     private fun toggleRecording() {
-        if (busy || !eligible) return
-        if (isRecording) {
-            isRecording = false
-            busy = true
-            render()
-            stopAndTranscribe()
-        } else if (recoveries.snapshot().canCapture) {
-            capture = try { client.admission.acquire() } catch (error: Exception) {
-                Toast.makeText(this, error.message ?: getString(R.string.cloud_setup_needed), Toast.LENGTH_LONG).show()
-                return
-            } ?: run {
-                Toast.makeText(this, "Finish the current dictation or resolve recovered transcripts first.", Toast.LENGTH_LONG).show()
-                return
-            }
-            try {
-                audioRecorder.start()
-                recordingGeneration = inputGeneration
-                recordingConnection = currentInputConnection
-                recordingContext = DictationContext(editorPackage, editorType)
-                isRecording = true
-                Toast.makeText(this, "Recording. Finishes automatically after 5 minutes.", Toast.LENGTH_SHORT).show()
-                limitMonitor = scope.launch {
-                    while (isRecording) {
-                        delay(100)
-                        if (!audioRecorder.recording && isRecording) {
-                            if (audioRecorder.limitReached) {
-                                Toast.makeText(this@WysawygKeyboardService, "5-minute limit reached. Transcribing.", Toast.LENGTH_LONG).show()
-                                toggleRecording()
-                            } else cancelCapture()
-                        }
-                    }
-                }
-                render()
-            } catch (e: Exception) {
-                runCatching { audioRecorder.close() }
-                capture?.cancelCapture()
-                capture = null
-                WysawygLogger.e("Failed to start recording", e)
-                Toast.makeText(this, "Recording failed", Toast.LENGTH_SHORT).show()
-            }
+        val session = RecordingSessions.state.value
+        if (session.canStop) {
+            RecordingSessions.command(this, OverlayService.STOP)
+            return
         }
+        if (!session.canStart(eligible, Recoveries.get(this).snapshot().canCapture)) return
+        val generation = inputGeneration
+        val owner = WeakReference(this)
+        val valid = { owner.get()?.let { it.eligible && it.inputGeneration == generation && it.currentInputConnection != null } == true }
+        OverlayService.startFromIme(this, RecordingDestination(DictationContext(editorPackage, editorType), valid) { text ->
+            if (!valid()) false else owner.get()?.currentInputConnection?.commitText(text, 1) == true
+        })
     }
 
-    private fun stopAndTranscribe() {
-        limitMonitor?.cancel()
-        val reservation = capture ?: return
-        val generation = recordingGeneration
-        val connection = recordingConnection
-        recordingConnection = null
-        scope.launch {
-            try {
-                val wav = withContext(Dispatchers.IO) { audioRecorder.stop() }
-                var staged: RecoveredTranscript? = null
-                // Reading the editor is IPC that a slow app can stall, so keep it off the main thread.
-                val shape = withContext(Dispatchers.IO) {
-                    runCatching {
-                        recordingContext.copy(
-                            textBefore = connection?.getTextBeforeCursor(200, 0)?.toString().orEmpty(),
-                            textAfter = connection?.getTextAfterCursor(200, 0)?.toString().orEmpty())
-                    }.getOrDefault(recordingContext)
-                }
-                val text = client.transcribe(wav, reservation, { Interpretation.apply(this@WysawygKeyboardService, it, shape) }) { text ->
-                    if (text.isNotBlank()) staged = recoveries.stage(text)
-                }
-                currentCoroutineContext().ensureActive()
-                val item = staged
-                if (item == null && text.isNotEmpty() && eligible && generation == inputGeneration) {
-                    // Only a spoken "new line": nothing worth recovering, so insert it directly.
-                    connection?.commitText(text, 1)
-                } else if (item != null && eligible && generation == inputGeneration && connection?.commitText(item.text, 1) == true) {
-                    if (!withContext(NonCancellable + Dispatchers.IO) { recoveries.remove(item.id) }) {
-                        Toast.makeText(this@WysawygKeyboardService,
-                            "Inserted, but recovery removal was not saved. Check before inserting again.", Toast.LENGTH_LONG).show()
-                    }
-                } else {
-                    Toast.makeText(this@WysawygKeyboardService,
-                        if (item == null) "No speech detected" else "Transcript kept in Recovered transcripts.", Toast.LENGTH_LONG).show()
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                WysawygLogger.e("Transcription failed", e)
-                Toast.makeText(this@WysawygKeyboardService, "Transcription failed: ${e.message}", Toast.LENGTH_LONG).show()
-            } finally {
-                withContext(NonCancellable + Dispatchers.IO) { runCatching { audioRecorder.close() } }
-                reservation.cancelCapture()
-                capture = null
-                busy = false
-                render()
-            }
-        }
-    }
-
-    private fun cancelCapture() {
-        if (!isRecording) return
-        limitMonitor?.cancel()
-        isRecording = false
-        recordingConnection = null
-        busy = true
-        scope.launch {
-            withContext(NonCancellable + Dispatchers.IO) { runCatching { audioRecorder.close() } }
-            capture?.cancelCapture()
-            capture = null
-            busy = false
-            render()
-        }
+    override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int,
+        candidatesStart: Int, candidatesEnd: Int) {
+        super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        if (oldSelStart != newSelStart || oldSelEnd != newSelEnd) inputGeneration++
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
         inputGeneration++
         eligible = false
-        cancelCapture()
         render()
         super.onFinishInputView(finishingInput)
     }
@@ -210,19 +124,16 @@ class WysawygKeyboardService : InputMethodService() {
     override fun onFinishInput() {
         inputGeneration++
         eligible = false
-        cancelCapture()
         render()
         super.onFinishInput()
     }
 
     override fun onDestroy() {
+        inputGeneration++
+        eligible = false
         scope.cancel()
-        isRecording = false
-        recordingConnection = null
         recordButton = null
-        runCatching { audioRecorder.close() }
-        capture?.cancelCapture()
-        capture = null
+        status = null
         super.onDestroy()
     }
 }

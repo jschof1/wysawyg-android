@@ -26,8 +26,8 @@ say commands such as "new line", "new paragraph", and "scratch that".
 
 STAY IN CONTROL
 
-Tap the floating microphone to start. Tap Stop to transcribe, or Cancel to discard
-the recording. Recordings finish after five minutes. Choose a detailed recording
+Tap the floating microphone to start. Tap Stop to transcribe. Capture continues
+across screens until Stop. Stop & keep saves audio for retry on device. Choose a detailed recording
 panel, a compact timer, or a minimal microphone indicator.
 
 KEEP WORDS THAT COULD NOT BE INSERTED

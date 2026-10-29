@@ -16,6 +16,10 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.Lifecycle
+import kotlinx.coroutines.launch
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /** Home: is dictation ready, what is left to set up, and how text will be written. */
@@ -41,6 +45,12 @@ class MainActivity : AppCompatActivity() {
         applySystemInsets()
         WysawygLogger.init(this)
         WysawygLogger.i("MainActivity started")
+        RecordingSessions.store(this)
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                RecordingSessions.state.collect { render() }
+            }
+        }
 
         findViewById<View>(R.id.startOverlayButton).setOnClickListener {
             if (hasPermissions()) startOverlayService() else requestPermissions()
@@ -159,7 +169,19 @@ class MainActivity : AppCompatActivity() {
 
         renderStyleHero(StyleSettings.load(prefs))
 
-        val count = Recoveries.get(this).snapshot().items.size
+        val session = RecordingSessions.state.value
+        val count = Recoveries.get(this).snapshot().items.size + if (session.keepsIndicator) 1 else 0
+        if (session.keepsIndicator) {
+            findViewById<TextView>(R.id.statusText).text = when (session.phase) {
+                RecordingPhase.CAPTURING -> "Recording"
+                RecordingPhase.STARTING -> "Preparing microphone"
+                RecordingPhase.TRANSCRIBING -> "Transcribing"
+                else -> "Recording kept"
+            }
+            findViewById<TextView>(R.id.statusMeta).text = if (session.canStop)
+                "Open Recovered transcripts for Stop. Recording continues across screens."
+                else "Open Recovered transcripts to manage saved audio and text."
+        }
         findViewById<TextView>(R.id.recoveredCount).text = count.toString()
         findViewById<View>(R.id.recoveredHelp).visibility = if (count > 0) View.VISIBLE else View.GONE
         findViewById<TextView>(R.id.footerText).setText(if (cloud) R.string.footer_cloud else R.string.footer_local)

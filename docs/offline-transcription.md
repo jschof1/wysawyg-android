@@ -1,9 +1,12 @@
+> Recording lifecycle update, 29 October 2026: see [persistent dictation](recording-persistence-plan.md). Historical verification below describes the old five-minute automatic finish and Cancel behaviour; those claims do not verify the new implementation.
+
 # On-device transcription (1.4.0 / code 9)
 
 The default is bundled Phonon 2, English, ARM64, Android 8/API 26 or later.
 It needs microphone permission, not a server URL or key. The model adds about
-255 MB to the APK. Recordings finish normally at five minutes; Stop finishes
-sooner and Cancel discards captured audio. There is no handset model download.
+255 MB to the APK. Capture continues until Stop, across keyboard and screen changes. Stop & keep
+retains audio without transcription. Long recordings use one-minute transcription
+segments, each below the engine limit; capture has no five-minute cutoff. There is no handset model download.
 
 Advanced contains an explicit cloud choice and the existing provider fields.
 Cloud uploads audio to that provider. Missing, legacy or unknown mode values

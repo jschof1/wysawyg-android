@@ -44,9 +44,10 @@ class RecoveryControlsTest {
     private var oldCloudConsent: String? = null
     private var originalClipboard: ClipData? = null
     private var setup = false
+    private var testRecordingId: String? = null
     private lateinit var server: LocalTranscriptionServer
     private val start = By.pkg("com.cragnet.wysawyg").desc("Start dictation")
-    private val finish = By.pkg("com.cragnet.wysawyg").desc("Finish dictation. Hold to cancel")
+    private val finish = By.pkg("com.cragnet.wysawyg").desc("Stop recording. Hold to stop and keep audio")
     // A finished sentence, so the destination writing style leaves it unchanged.
     private val words = "WYSAWYG recovery test words."
     private val retainRecoveryForRestart = InstrumentationRegistry.getArguments()
@@ -90,6 +91,7 @@ class RecoveryControlsTest {
     }
 
     @Before fun prepare() {
+        assertNull("Resolve existing audio before this suite", RecordingSessions.store(context).pending())
         val snapshot = Recoveries.get(context).snapshot()
         assertTrue("Resolve existing recoveries before this targeted test run", snapshot.items.isEmpty())
         assertFalse("Recovery storage must be readable", snapshot.unreadable)
@@ -113,7 +115,14 @@ class RecoveryControlsTest {
         context.getSharedPreferences("speakeasy_privacy", Context.MODE_PRIVATE).edit()
             .putString("cloud_origin_v1", oldCloudConsent).commit()
         server.release.countDown()
+        instrumentation.runOnMainSync { context.stopService(Intent(context, OverlayService::class.java)) }
+        await("In-flight request must finish staging") { !Transcriptions.get(context).admission.isHeld }
         server.close()
+        RecordingSessions.store(context).pending()?.let { audio ->
+            assertEquals("Only discard this test's recording", testRecordingId, audio.id)
+            instrumentation.runOnMainSync { RecordingSessions.command(context, OverlayService.DISCARD, audio.id) }
+            await("Explicit test cleanup must discard its audio") { RecordingSessions.store(context).pending() == null }
+        }
         instrumentation.runOnMainSync { OverlayService.pause(context) }
         await("Overlay must stop") { !OverlayService.isRunning() }
         val store = Recoveries.get(context)
@@ -154,6 +163,7 @@ class RecoveryControlsTest {
     private fun beginRecording() {
         requireNotNull(device.wait(Until.findObject(start), 8000)).click()
         assertTrue("The real recording controls must appear", device.wait(Until.hasObject(finish), 8000))
+        testRecordingId = RecordingSessions.state.value.id
     }
 
     private fun stopWithHeldResponse() {
@@ -176,7 +186,7 @@ class RecoveryControlsTest {
         return result
     }
 
-    @Test fun visibleTimerAndCancelReleaseMicrophoneWithoutAnyRequest() = withEditor {
+    @Test fun visibleTimerAndStopKeepPreserveAudioWithoutAnyRequest() = withEditor {
         beginRecording()
         assertTrue(microphoneActive())
         assertNotNull(device.findObject(res("recordingLevel")))
@@ -185,10 +195,12 @@ class RecoveryControlsTest {
             device.findObject(res("recordingTimer"))?.text?.let { it != firstTime } == true
         }
         val cancel = requireNotNull(device.findObject(res("cancelRecording")))
-        assertTrue(cancel.text.equals("Cancel", ignoreCase = true))
+        assertTrue(cancel.text.equals("Stop & keep", ignoreCase = true))
         screenshot("recording")
         cancel.click()
-        assertTrue(device.wait(Until.hasObject(start), 8000))
+        await("Stop and keep must expose recovery") { RecordingSessions.state.value.phase == RecordingPhase.INTERRUPTED }
+        assertTrue(device.hasObject(res("retryAudio")))
+        assertTrue(requireNotNull(RecordingSessions.store(context).pending()).bytes > 0)
         assertFalse(microphoneActive())
         SystemClock.sleep(400)
         assertEquals(0, server.requests.get())
@@ -265,7 +277,7 @@ class RecoveryControlsTest {
         beginRecording()
         stopWithHeldResponse()
         scenario.onActivity { OverlayService.pause(it) }
-        await("Pause must stop the in-flight service") { !OverlayService.isRunning() }
+        assertTrue("Pause must keep in-flight work owned by the service", OverlayService.isRunning())
         server.release.countDown()
         await("A completed response during Pause must still be staged") {
             Recoveries.get(context).snapshot().items.any { it.text == words }
@@ -273,22 +285,132 @@ class RecoveryControlsTest {
         assertEquals(words, RecoveryStore(File(context.noBackupFilesDir, "recovered-transcripts.bin")).snapshot().items.single().text)
         scenario.onActivity { assertTrue(it.editor.text.isEmpty()); assertTrue(it.secondEditor.text.isEmpty()) }
         assertFalse(OverlayService.isEnabled(context))
+        await("Paused idle service can stop after durable staging") { !OverlayService.isRunning() }
         assertFalse(device.hasObject(res("recoveryPanel")))
     }
 
-    @Test fun keyboardHideAndPauseCancelCaptureWithoutRequests() = withEditor { scenario ->
+    @Test fun lateResponseAfterServiceDestructionClearsInterruptedSessionAndKeepsText() = withEditor { scenario ->
         beginRecording()
+        stopWithHeldResponse()
+        val id = RecordingSessions.state.value.id
+        scenario.onActivity { it.stopService(Intent(it, OverlayService::class.java)) }
+        await("Destroyed service must preserve the pending session") {
+            RecordingSessions.state.value.id == id && RecordingSessions.state.value.phase == RecordingPhase.INTERRUPTED
+        }
+        server.release.countDown()
+        await("Late completion must clear only the finished audio session") {
+            RecordingSessions.state.value.phase == RecordingPhase.IDLE && RecordingSessions.store(context).pending() == null
+        }
+        assertEquals(words, RecoveryStore(File(context.noBackupFilesDir, "recovered-transcripts.bin")).snapshot().items.single().text)
+        scenario.onActivity { assertTrue(it.editor.text.isEmpty()); assertTrue(it.secondEditor.text.isEmpty()) }
+    }
+
+    @Test fun keyboardHideNavigationAndPauseKeepSameCaptureUntilExplicitStop() = withEditor { scenario ->
+        beginRecording()
+        val id = RecordingSessions.state.value.id
+        val before = requireNotNull(RecordingSessions.store(context).pending()).bytes
         device.pressBack()
-        await("Hiding keyboard must release microphone") { !microphoneActive() }
-        assertFalse(device.hasObject(finish))
-        requireNotNull(device.findObject(res("dictationTestEditor"))).click()
-        assertTrue(device.wait(Until.hasObject(start), 8000))
-        beginRecording()
+        await("Hidden keyboard must leave Stop visible") { device.hasObject(finish) }
+        assertTrue("Keyboard hide must keep microphone foreground type", microphoneActive())
+        await("PCM must keep growing while keyboard is hidden") {
+            requireNotNull(RecordingSessions.store(context).pending()).bytes > before
+        }
+        requireNotNull(device.findObject(res("dictationTestSecondEditor"))).click()
+        assertEquals(id, RecordingSessions.state.value.id)
         scenario.onActivity { OverlayService.pause(it) }
-        await("Pause during recording must destroy service") { !OverlayService.isRunning() }
+        assertTrue("Pause affects future starts, not the active recording", OverlayService.isRunning())
+        assertTrue(microphoneActive())
+        assertEquals(id, RecordingSessions.state.value.id)
+        stopWithHeldResponse()
+        server.release.countDown()
+        await("Navigation must preserve the full transcript without stale insertion") {
+            Recoveries.get(context).snapshot().items.any { it.text == words }
+        }
+        scenario.onActivity { assertTrue(it.editor.text.isEmpty()); assertTrue(it.secondEditor.text.isEmpty()) }
+        assertEquals(1, server.requests.get())
+        assertNull(RecordingSessions.store(context).pending())
+    }
+
+    @Test fun navigatingToAnotherScreenAndReturningKeepsSameSession() = withEditor { scenario ->
+        beginRecording()
+        val original = RecordingSessions.state.value
+        scenario.onActivity { it.startActivity(Intent(it, MoreSettingsActivity::class.java)) }
+        assertTrue(device.wait(Until.hasObject(res("moreToolbar")), 5000))
+        assertTrue(microphoneActive())
+        assertEquals(original.id, RecordingSessions.state.value.id)
+        assertEquals(original.startedAt, RecordingSessions.state.value.startedAt)
+        device.pressBack()
+        assertTrue(device.wait(Until.hasObject(res("dictationTestEditor")), 5000))
+        requireNotNull(device.findObject(res("dictationTestEditor"))).click()
+        assertEquals(original.id, RecordingSessions.state.value.id)
+        stopWithHeldResponse()
+        server.release.countDown()
+        await("Returning must recover text rather than reuse an old editor token") {
+            Recoveries.get(context).snapshot().items.any { it.text == words }
+        }
+        scenario.onActivity { assertTrue(it.editor.text.isEmpty()) }
+    }
+
+    @Test fun serviceInterruptionKeepsPcmAndDoesNotRestartMicOrUpload() = withEditor { scenario ->
+        beginRecording()
+        await("Capture must have a durable prefix") { RecordingSessions.store(context).pending()?.bytes?.let { it > 0 } == true }
+        val id = RecordingSessions.state.value.id
+        scenario.onActivity { it.stopService(Intent(it, OverlayService::class.java)) }
+        await("Service interruption must release microphone") { !microphoneActive() }
+        val reopened = DurablePcmStore(File(context.noBackupFilesDir, "recordings")).pending()
+        assertEquals(id, reopened?.id)
+        assertTrue(requireNotNull(reopened).bytes > 0)
+        scenario.onActivity { ContextCompat.startForegroundService(it, Intent(it, OverlayService::class.java)) }
+        await("Restart must expose interrupted state") { RecordingSessions.state.value.phase == RecordingPhase.INTERRUPTED }
         assertFalse(microphoneActive())
         assertEquals(0, server.requests.get())
-        assertTrue(Recoveries.get(context).snapshot().items.isEmpty())
+        assertTrue(device.wait(Until.hasObject(res("retryAudio")), 5000))
+    }
+
+    @Test fun optionalImeUsesSameForegroundOwnerAndSurvivesImeDestruction() {
+        val oldIme = shell("settings get secure default_input_method")
+        val ime = "${context.packageName}/.WysawygKeyboardService"
+        val oldOverlayMode = Regex("SYSTEM_ALERT_WINDOW: ([a-z]+)")
+            .find(shell("appops get ${context.packageName} SYSTEM_ALERT_WINDOW"))?.groupValues?.get(1) ?: "default"
+        assertTrue("IME-only recording needs visible notifications", androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled())
+        val wasEnabled = shell("ime list -s").lineSequence().any { it == ime || it == "${context.packageName}/com.cragnet.wysawyg.WysawygKeyboardService" }
+        try {
+            shell("ime enable $ime")
+            shell("ime set $ime")
+            withEditor { scenario ->
+                // Disable overlay starts; the optional keyboard must still start the shared service.
+                instrumentation.runOnMainSync { OverlayService.pause(context) }
+                await("Pause must stop the idle overlay service") { !OverlayService.isRunning() }
+                shell("appops set ${context.packageName} SYSTEM_ALERT_WINDOW deny")
+                val imeStart = By.pkg(context.packageName).desc("Start dictation")
+                requireNotNull(device.wait(Until.findObject(imeStart), 5000)).click()
+                await("IME must use foreground microphone service") { microphoneActive() }
+                testRecordingId = RecordingSessions.state.value.id
+                assertFalse("IME capture must not need an overlay", device.hasObject(res("recordingPanel")))
+                val original = RecordingSessions.state.value
+                device.pressBack()
+                if (oldIme.isNotBlank() && oldIme != "null" && oldIme != ime) shell("ime set $oldIme")
+                // Disabling the optional IME destroys its service; capture belongs to OverlayService.
+                shell("ime disable $ime")
+                assertTrue(microphoneActive())
+                assertEquals(original.id, RecordingSessions.state.value.id)
+                assertEquals(original.startedAt, RecordingSessions.state.value.startedAt)
+                device.openNotification()
+                requireNotNull(device.wait(Until.findObject(By.text("Stop")), 5000)).click()
+                assertTrue(server.received.await(8, TimeUnit.SECONDS))
+                device.pressBack()
+                server.release.countDown()
+                await("Destroyed IME must not lose or insert the response") {
+                    Recoveries.get(context).snapshot().items.any { it.text == words }
+                }
+                scenario.onActivity { assertTrue(it.editor.text.isEmpty()) }
+            }
+        } finally {
+            shell("appops set ${context.packageName} SYSTEM_ALERT_WINDOW $oldOverlayMode")
+            if (wasEnabled) shell("ime enable $ime")
+            if (oldIme.isNotBlank() && oldIme != "null") shell("ime set $oldIme")
+            if (!wasEnabled) shell("ime disable $ime")
+        }
     }
 
     private class LocalTranscriptionServer(private val text: String) : AutoCloseable {

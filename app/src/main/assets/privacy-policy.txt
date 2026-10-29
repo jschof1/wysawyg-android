@@ -1,5 +1,5 @@
 Speakeasy privacy policy
-Effective 28 October 2026
+Effective 29 October 2026
 
 This policy covers the Speakeasy Android app from Aspect Studio Software,
 with Google Play package net.aspectstudio.speakeasy. Earlier
@@ -10,13 +10,20 @@ On-device dictation
 
 Speakeasy transcribes English speech on your phone by default using its bundled
 speech model. Recordings are captured only when you start dictation. Stop finishes
-the recording and transcribes it. Cancel discards it. A recording ends after five
-minutes. Speakeasy does not automatically switch to a cloud provider when local
-transcription fails.
+the recording and transcribes it. Stop & keep ends capture without transcription
+and retains the audio. Capture continues across keyboard and screen changes until
+you stop it or Android interrupts it; there is no five-minute capture cutoff.
+Speakeasy does not automatically switch to cloud when local transcription fails.
 
 On-device dictation does not send your recording, transcript, or the text around
-your cursor to us or a transcription provider. Audio is processed in memory and
-private temporary files. The app does not maintain a library of audio recordings.
+your cursor to us or a transcription provider. Audio is written during capture to
+private app storage excluded from backup, and processed in bounded segments.
+Interrupted or failed recordings and completed segment text remain on the phone
+until the complete transcript is saved or you explicitly discard the audio.
+One pending recording must be resolved before another starts. Home → Recovered
+transcripts offers Retry on device and confirmed Discard audio. Recovery is never
+uploaded automatically, even if cloud settings change. Force-stop can stop the
+microphone; reopening retains the prefix already written without restarting it.
 
 Accessibility and the optional keyboard
 
@@ -34,8 +41,11 @@ The optional Speakeasy keyboard accesses the current editor through Android's
 input method interface. It can insert dictated text without Accessibility access.
 Android permissions for the microphone, overlays, and notifications are managed
 in your device settings. When notifications are allowed, the ongoing notification
-lets you pause floating dictation. You can also pause it from Home. Starting the
-phone or resuming the service does not start a recording.
+offers Stop during recording and Recover after interruption. Without overlay
+permission, notifications must be enabled before starting through the optional
+keyboard. Pause in Home prevents new floating starts while an active recording
+continues until Stop. Starting the phone or resuming the service never starts a
+recording.
 
 Optional cloud transcription
 
@@ -71,7 +81,8 @@ Speakeasy stages completed text privately on the phone before attempting
 insertion. Text that cannot be inserted remains in Recovered transcripts. Up to
 five transcripts can be held. Saved items expire after 24 hours when the store is
 next accessed. If a disk write fails, text may remain only in memory, and new
-recording is paused until you resolve it. This is private app storage, not a
+recording is paused until you resolve it; captured audio is also retained until
+text staging succeeds or you explicitly discard it. This is private app storage, not a
 separate encrypted vault. Insert or discard an item to remove it. Copy places it
 on Android's clipboard and keeps the saved item until you insert or discard it.
 Other apps and your device's clipboard features may handle text after you copy it.
@@ -96,9 +107,10 @@ Your choices and deletion
 You can withdraw Accessibility consent using Turn off text access in Privacy and
 permissions, or disable Speakeasy in Android Accessibility settings. You can
 continue to use on-device dictation through the optional Speakeasy keyboard.
-Discard recovered transcripts and clear logs within the app. Clearing Speakeasy's
+Discard saved audio or recovered transcripts and clear logs within the app.
+Clearing Speakeasy's
 app storage or uninstalling it removes its private settings, downloaded cleanup
-model, logs, consent choices, and saved transcripts. Copies you made in other
+model, logs, consent choices, saved audio, and saved transcripts. Copies you made in other
 apps, exported files, clipboard services, or cloud providers are controlled
 separately and are not removed by uninstalling Speakeasy.
 

@@ -12,6 +12,42 @@ object RecoveredTranscripts {
         "To insert, select a non-password text box with your keyboard open, then tap Insert here on the floating card. Pause keeps saved text."
 
     fun show(activity: AppCompatActivity, onChanged: () -> Unit) {
+        RecordingSessions.store(activity)
+        val session = RecordingSessions.state.value
+        if (session.phase != RecordingPhase.IDLE) {
+            val dialog = MaterialAlertDialogBuilder(activity).setTitle(when (session.phase) {
+                RecordingPhase.CAPTURING -> "Recording in progress"
+                RecordingPhase.TRANSCRIBING -> "Transcribing recording"
+                else -> "Saved recording"
+            }).setMessage(when (session.phase) {
+                RecordingPhase.CAPTURING -> "Recording continues across screens until Stop."
+                RecordingPhase.TRANSCRIBING -> "Audio is kept until the complete transcript is saved."
+                else -> session.message + "\n\nRetry runs on this device, even if Cloud is selected. Audio stays here until text is saved or you explicitly discard it."
+            }).setNegativeButton("Saved transcripts") { _, _ -> showText(activity, onChanged) }
+                .setNeutralButton("Close", null)
+            if (session.canStop) dialog.setPositiveButton("Stop") { _, _ ->
+                RecordingSessions.command(activity, OverlayService.STOP, session.id)
+            }
+            if (session.phase == RecordingPhase.INTERRUPTED && !Transcriptions.get(activity).admission.isHeld) {
+                dialog.setPositiveButton("Retry on device") { _, _ ->
+                    RecordingSessions.command(activity, OverlayService.RETRY, session.id)
+                    onChanged()
+                }.setNeutralButton("Discard audio") { _, _ ->
+                    MaterialAlertDialogBuilder(activity).setTitle("Discard this saved recording?")
+                        .setMessage("This permanently removes its audio and partial transcription. Saved transcripts are kept.")
+                        .setNegativeButton("Keep", null).setPositiveButton("Discard audio") { _, _ ->
+                            RecordingSessions.command(activity, OverlayService.DISCARD, session.id)
+                            onChanged()
+                        }.show()
+                }
+            }
+            dialog.show()
+            return
+        }
+        showText(activity, onChanged)
+    }
+
+    private fun showText(activity: AppCompatActivity, onChanged: () -> Unit) {
         val store = Recoveries.get(activity)
         val snapshot = store.snapshot()
         fun toast(message: String) = Toast.makeText(activity, message, Toast.LENGTH_LONG).show()

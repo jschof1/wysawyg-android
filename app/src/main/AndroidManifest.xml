@@ -36,7 +36,7 @@
             android:exported="false"
             android:foregroundServiceType="specialUse|microphone">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="User-enabled floating dictation button available with the keyboard. Microphone is used only after a tap." />
+                android:value="Shared dictation session and recovery controls for the floating button and optional keyboard. User-started microphone capture continues across screens until Stop." />
         </service>
 
         <service android:name=".PhononService" android:exported="false" android:process=":phonon" />

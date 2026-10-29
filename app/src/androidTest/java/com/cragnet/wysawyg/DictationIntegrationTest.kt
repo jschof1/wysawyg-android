@@ -415,15 +415,19 @@ class DictationIntegrationTest {
     @Test fun microphoneProducesValidWavAndCanRestartAfterClosing() {
         ActivityScenario.launch(DictationTestActivity::class.java).use { scenario ->
             lateinit var recorder: AudioRecorder
+            val audioDirectory = java.io.File(context.cacheDir, "recorder-test-${java.util.UUID.randomUUID()}")
+            val audioStore = DurablePcmStore(audioDirectory)
             scenario.onActivity { activity ->
                 recorder = AudioRecorder(activity)
                 ContextCompat.startForegroundService(activity, Intent(activity, OverlayService::class.java))
             }
             try {
                 repeat(2) {
-                    scenario.onActivity { recorder.start() }
+                    val audio = audioStore.create()
+                    scenario.onActivity { recorder.start(audioStore, audio) }
                     SystemClock.sleep(300)
-                    val wav = recorder.stop()
+                    recorder.stop()
+                    val wav = audio.wav(0)
                     assertTrue("Microphone must produce PCM samples", wav.size > 44)
                     assertEquals("RIFF", String(wav, 0, 4))
                     assertEquals("WAVE", String(wav, 8, 4))
@@ -432,8 +436,9 @@ class DictationIntegrationTest {
                     assertEquals(1, header.getShort(22).toInt())
                     assertEquals(16, header.getShort(34).toInt())
                     assertEquals(wav.size - 44, header.getInt(40))
+                    assertTrue(audioStore.remove(audio))
                 }
-            } finally { recorder.close() }
+            } finally { recorder.close(); audioDirectory.deleteRecursively() }
         }
     }
 

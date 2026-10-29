@@ -25,8 +25,8 @@
     <string name="recording_zero">00:00</string>
     <string name="sound_level">Live microphone level</string>
     <string name="stop_recording">Stop</string>
-    <string name="cancel_recording">Cancel</string>
-    <string name="finish_dictation">Finish dictation. Hold to cancel</string>
+    <string name="cancel_recording">Stop &amp; keep</string>
+    <string name="finish_dictation">Stop recording. Hold to stop and keep audio</string>
     <string name="copy_recovery">Copy</string>
     <string name="insert_here">Insert here</string>
     <string name="discard_recovery">Discard</string>
@@ -39,7 +39,7 @@
     <string name="later_recovery">Later</string>
     <string name="saved_text_count">Saved text (%1$d)</string>
     <string name="works_offline">Works offline · English</string>
-    <string name="recording_limit">Recordings finish automatically after 5 minutes. Cancel discards audio.</string>
+    <string name="recording_limit">Recording continues until Stop. Stop &amp; keep saves audio without transcribing.</string>
     <string name="cloud_upload_notice">Recordings are uploaded to your configured provider when cloud transcription is selected. No automatic fallback.</string>
     <string name="cloud_selected">Cloud selected · Recordings are uploaded</string>
     <string name="app_title">Speakeasy</string>
@@ -68,7 +68,7 @@
     <!-- Speakeasy redesign -->
     <string name="tagline">Your voice. In your words.</string>
     <string name="recording_drag_hint">Recording</string>
-    <string name="recording_limit_short">Stop to insert · Cancel discards · finishes after 5 minutes</string>
+    <string name="recording_limit_short">Continues across screens · Stop to transcribe</string>
     <string name="status_on">On</string>
     <string name="status_paused">Paused</string>
     <string name="status_off">Off</string>

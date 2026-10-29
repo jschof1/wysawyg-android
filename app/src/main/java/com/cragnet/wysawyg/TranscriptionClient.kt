@@ -40,9 +40,11 @@ class CaptureAdmission(
     private val canCapture: () -> Boolean
 ) {
     private var current: Reservation? = null
-    @Synchronized fun acquire(): Reservation? {
+    val isHeld: Boolean get() = synchronized(this) { current != null }
+
+    @Synchronized fun acquire(prepareBackend: () -> TranscriptionBackend = prepare): Reservation? {
         if (current != null || !canCapture()) return null
-        return Reservation(prepare()).also { current = it }
+        return Reservation(prepareBackend()).also { current = it }
     }
     inner class Reservation internal constructor(internal val backend: TranscriptionBackend) {
         private var accepted = false
@@ -72,6 +74,34 @@ class TranscriptionClient(
         /** Shapes the raw transcript for its destination. Failures keep the raw transcript. */
         interpret: suspend (String) -> String = { it },
         onTranscribed: (String) -> Unit = {}
+    ): String = perform(reservation, { backend ->
+        val raw = backend.transcribe(wavBytes)
+        try { interpret(raw) } catch (e: Exception) { raw }
+    }, onTranscribed)
+
+    /** One reservation covers all segments and durable staging, even if the UI/service disappears. */
+    suspend fun transcribeRecording(
+        audio: DurablePcmStore.Capture,
+        reservation: CaptureAdmission.Reservation,
+        interpret: suspend (String) -> String = { it },
+        onTranscribed: (String) -> Unit
+    ): String = perform(reservation, { backend ->
+        val text = StringBuilder()
+        for (index in 0 until audio.segments) {
+            val segment = audio.savedSegment(index) ?: backend.transcribe(audio.wav(index)).also {
+                audio.saveSegment(index, it)
+            }
+            if (text.isNotEmpty() && segment.isNotEmpty()) text.append(' ')
+            text.append(segment)
+        }
+        val raw = text.toString()
+        try { interpret(raw) } catch (e: Exception) { raw }
+    }, onTranscribed)
+
+    private suspend fun perform(
+        reservation: CaptureAdmission.Reservation,
+        transcribe: suspend (TranscriptionBackend) -> String,
+        onTranscribed: (String) -> Unit
     ): String = suspendCancellableCoroutine { waiter ->
         try {
             reservation.accept()
@@ -83,8 +113,7 @@ class TranscriptionClient(
             val backend = reservation.backend
             val work = scope.launch {
                 try {
-                    val raw = serial.withLock { backend.transcribe(wavBytes) }
-                    val text = try { interpret(raw) } catch (e: Exception) { raw }
+                    val text = serial.withLock { transcribe(backend) }
                     onTranscribed(text)
                     reservation.complete()
                     if (waiter.isActive) waiter.resume(text)

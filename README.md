@@ -2,6 +2,19 @@
 
 Speakeasy (formerly WYSAWYG) is a voice-to-text app for Android. Its floating microphone works with your existing keyboard; a custom keyboard IME is optional. English speech is transcribed on the phone using bundled Phonon 2 by default, then inserted at the cursor. No API setup or model download is needed. Optional cloud transcription lives in More settings. Failed insertion can be recovered explicitly.
 
+## Current recording behaviour (29 October 2026)
+
+- Closing the keyboard, changing editors/screens, or destroying the optional IME keeps the same recording running.
+- The existing foreground service owns one session for both controls. Its notification offers **Stop**; the floating indicator stays visible when overlay permission is available. IME-only recording requires notifications when overlays are unavailable.
+- **Stop** ends capture and transcribes. **Stop & keep** (also holding Stop) ends capture without transcription and retains the audio. **Pause** prevents future floating starts; an active session continues until Stop.
+- Capture streams 16 kHz mono PCM to private `noBackupFilesDir/recordings` storage, without a total duration cutoff. One-minute transcription segments bound audio memory and stay below the native engine's per-request limit.
+- OS/read/storage interruption preserves the written prefix. No automatic microphone restart or recovery upload occurs. Home → **Recovered transcripts** exposes saved audio, **Retry on device**, and confirmed **Discard audio**, including without overlay permission.
+- Completed segment text is checkpointed. Audio is removed only after the complete transcript is durably staged or explicitly discarded. New recording is blocked while audio remains pending.
+- A changed or hidden editor invalidates automatic insertion. Text stays available for deliberate insertion/copy. Retry always uses on-device transcription, regardless of current cloud settings; a normal Stop retains the provider frozen when capture began and its consent checks.
+- Android may stop or force-stop the app. Recording cannot continue through process death; reopening exposes the audio already written, without restarting the microphone. Uninstalling/clearing app data removes recovery.
+
+Implementation and verification scope: [persistent dictation](docs/recording-persistence-plan.md). Historical release claims below about cancellation and five-minute capture limits are superseded by this section. Handset checks for the changed lifecycle remain pending.
+
 ## Version 1.7.0 (code 12)
 
 Prepares an Android 16 release bundle for Google Play. Floating dictation now
@@ -58,9 +71,9 @@ See [interpretation](docs/interpretation.md).
 Model and runtime notices are bundled and available in Settings.
 
 ## Architecture
-- `WysawygKeyboardService` — custom keyboard IME with a record button
-- `OverlayService` — optional floating record button
-- `AudioRecorder` — captures 16kHz mono PCM and writes WAV
+- `WysawygKeyboardService` — optional IME observing and controlling the shared foreground session
+- `OverlayService` — foreground recording/session owner, notification and optional floating controls
+- `AudioRecorder` / `DurablePcmStore` — stream durable 16 kHz PCM and expose bounded WAV segments
 - `TranscriptionClient` — shared capture admission, explicit offline/cloud routing and completion staging
 - `Interpretation` / `DictationFormatter` — per-app writing style, fillers, voice commands and cursor fit
 - `SmartCleanup` — optional on-device punctuation model (LiteRT-LM), guarded to keep every word
@@ -117,11 +130,12 @@ Direct insertion leaves the clipboard unchanged. Recovery changes it only when y
 SET_TEXT need the optional WYSAWYG keyboard, which uses InputConnection.commitText.
 This is a platform compatibility limit; the app reports failed insertion.
 
-Closing the keyboard hides the button and cancels an active recording. If the field,
-text or cursor changes while transcription runs, the result is not inserted into
-another location. Password fields do not show the button. The notification allows
-pausing the service. Enabled floating dictation resumes automatically after process
-restarts, phone startup, and app updates. Pause remains in effect until you enable it again.
+Closing the keyboard hides an idle button, while an active recording and its indicator continue.
+Changes to the field, text, cursor, or keyboard invalidate automatic insertion without
+stopping capture. Password fields cannot start capture; existing capture retains Stop.
+The notification offers Stop while recording and Pause new recordings while idle.
+Enabled floating standby can resume after accessibility reconnects, phone startup and
+app updates. Recording itself never resumes automatically. Pause persists.
 
 Try dictation opens a local scratch screen without sending messages or changing
 provider settings. JVM tests cover cursor edits and selected ranges. Device tests
@@ -258,7 +272,7 @@ and never contacts a real provider. Resolve existing recoveries first. It covers
 visible elapsed time/Cancel with zero requests, Stop releasing microphone access
 before HTTP, changed-target recovery, explicit Copy and fresh insertion, password
 hiding, service restart/Pause and disk readback, a response arriving during Pause,
-and keyboard-hide cancellation. All editor writes use the local scratch activity.
+and keyboard-hide persistence (the older cancellation expectation is superseded). All editor writes use the local scratch activity.
 It restores the clipboard after each scenario and keeps the selected IME unchanged.
 Run with the existing microphone/overlay/accessibility permissions and Gboard:
 

@@ -1,150 +1,74 @@
 package com.cragnet.wysawyg
 
-import android.content.Context
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
-import androidx.core.content.ContextCompat
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
-import java.io.ByteArrayOutputStream
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
+import androidx.core.content.ContextCompat
 
+/** The foreground service owns this recorder; closing it preserves every written PCM buffer. */
 class AudioRecorder(private val context: Context) {
-
-    companion object {
-        private const val SAMPLE_RATE = 16000
-        private const val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
-        private const val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
-        const val MAX_DURATION_MS = 5 * 60 * 1000L
-        private const val MAX_PCM_BYTES = SAMPLE_RATE * 2 * 300
-    }
-
-    private var audioRecord: AudioRecord? = null
     private var recordingThread: Thread? = null
     @Volatile private var isRecording = false
-    @Volatile private var discardRecording = false
-    @Volatile var limitReached = false
-        private set
     @Volatile var level = 0f
         private set
+    @Volatile var recordingError: Exception? = null
+        private set
     val recording: Boolean get() = isRecording
+    val hasWriter: Boolean get() = recordingThread?.isAlive == true
 
-    @Synchronized fun start() {
+    @Synchronized fun start(store: DurablePcmStore, capture: DurablePcmStore.Capture) {
         check(recordingThread == null) { "Recording already active" }
-        lastRecording = null
-        discardRecording = false
-        limitReached = false
-        level = 0f
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            throw SecurityException("Allow microphone access in Speakeasy settings before recording")
+        check(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            "Allow microphone access in Speakeasy settings before recording"
         }
-        val minBufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT)
-        val bufferSize = minBufferSize.coerceAtLeast(4096)
-        WysawygLogger.i("AudioRecorder.start: minBufferSize=$minBufferSize bufferSize=$bufferSize")
-
-        val recorder = AudioRecord(
-            MediaRecorder.AudioSource.MIC, SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT, bufferSize
-        )
+        val bufferSize = AudioRecord.getMinBufferSize(DurablePcmStore.SAMPLE_RATE,
+            AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+            .coerceAtLeast(DurablePcmStore.BYTES_PER_SECOND * 2)
+        val recorder = AudioRecord(MediaRecorder.AudioSource.MIC, DurablePcmStore.SAMPLE_RATE,
+            AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufferSize)
+        val writer = try { store.openWriter(capture) } catch (e: Exception) { recorder.release(); throw e }
         try {
             check(recorder.state == AudioRecord.STATE_INITIALIZED) { "Microphone not available" }
             recorder.startRecording()
-        } catch (e: Exception) {
-            recorder.release()
-            throw e
-        }
-        audioRecord = recorder
+        } catch (e: Exception) { writer.close(); recorder.release(); throw e }
         recordingError = null
         isRecording = true
         recordingThread = Thread {
-            val output = ByteArrayOutputStream()
-            val buffer = ByteArray(bufferSize)
-            val deadline = android.os.SystemClock.elapsedRealtime() + MAX_DURATION_MS
+            val buffer = ByteArray(4096)
             try {
-                while (isRecording) {
-                    if (output.size() >= MAX_PCM_BYTES || android.os.SystemClock.elapsedRealtime() >= deadline) {
-                        limitReached = true
-                        break
-                    }
-                    val read = recorder.read(buffer, 0, minOf(buffer.size, MAX_PCM_BYTES - output.size()), AudioRecord.READ_NON_BLOCKING)
-                    when {
-                        read > 0 -> {
-                            level = PcmLevel.normalized(buffer, read)
-                            output.write(buffer, 0, read)
+                writer.use {
+                    while (isRecording) {
+                        if (android.os.Build.VERSION.SDK_INT >= 29 && recorder.activeRecordingConfiguration?.isClientSilenced == true) {
+                            error("Android interrupted microphone access")
                         }
-                        read < 0 -> error("Microphone read failed ($read)")
-                        else -> Thread.sleep(10)
+                        val read = recorder.read(buffer, 0, buffer.size, AudioRecord.READ_NON_BLOCKING)
+                        when {
+                            read > 0 -> { writer.append(buffer, read); level = PcmLevel.normalized(buffer, read) }
+                            read < 0 -> error("Microphone read failed ($read)")
+                            else -> Thread.sleep(10)
+                        }
                     }
                 }
-                if (!discardRecording) lastRecording = encodeWav(output.toByteArray())
-            } catch (e: Exception) {
-                recordingError = e
-            } finally {
+            } catch (e: Exception) { recordingError = e }
+            finally {
                 isRecording = false
                 level = 0f
                 runCatching { recorder.stop() }
                 recorder.release()
-                audioRecord = null
-                output.close()
             }
         }.apply { name = "WysawygAudio"; start() }
     }
 
-    @Synchronized fun stop(): ByteArray {
+    @Synchronized fun stop() {
         isRecording = false
-        try {
-            recordingThread?.join(5000)
-            check(recordingThread?.isAlive != true) { "Recording did not stop" }
-            recordingError?.let { throw IllegalStateException("Could not capture audio", it) }
-            return lastRecording ?: throw IllegalStateException("No recording captured")
-        } finally {
-            level = 0f
-            lastRecording = null
-            recordingError = null
-            if (recordingThread?.isAlive != true) recordingThread = null
-        }
+        recordingThread?.join(5000)
+        check(recordingThread?.isAlive != true) { "Recording is still stopping; audio retained" }
+        recordingThread = null
+        level = 0f
     }
 
-    @Synchronized fun close() {
-        discardRecording = true
-        isRecording = false
-        try {
-            recordingThread?.join(5000)
-            check(recordingThread?.isAlive != true) { "Recording did not stop" }
-        } finally {
-            level = 0f
-            lastRecording = null
-            recordingError = null
-            if (recordingThread?.isAlive != true) recordingThread = null
-        }
-    }
-
-    private fun encodeWav(pcm: ByteArray): ByteArray = ByteArrayOutputStream(pcm.size + 44).use { out ->
-        out.write("RIFF".toByteArray())
-        out.write(intToByteArray(pcm.size + 36))
-        out.write("WAVEfmt ".toByteArray())
-        out.write(intToByteArray(16))
-        out.write(shortToByteArray(1))
-        out.write(shortToByteArray(1))
-        out.write(intToByteArray(SAMPLE_RATE))
-        out.write(intToByteArray(SAMPLE_RATE * 2))
-        out.write(shortToByteArray(2))
-        out.write(shortToByteArray(16))
-        out.write("data".toByteArray())
-        out.write(intToByteArray(pcm.size))
-        out.write(pcm)
-        out.toByteArray()
-    }
-
-    private fun intToByteArray(value: Int): ByteArray {
-        return ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(value).array()
-    }
-
-    private fun shortToByteArray(value: Short): ByteArray {
-        return ByteBuffer.allocate(2).order(ByteOrder.LITTLE_ENDIAN).putShort(value).array()
-    }
-
-    private var lastRecording: ByteArray? = null
-    private var recordingError: Exception? = null
+    fun close() = stop()
 }

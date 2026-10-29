@@ -1,3 +1,5 @@
+> Lifecycle amendment, 29 October 2026: [persistent dictation](../../recording-persistence-plan.md) supersedes this design's Cancel/discard and keyboard-bound lifetime assumptions. Holding Stop now means Stop & keep; Pause only prevents new floating starts.
+
 # Speakeasy — native Android implementation specification
 
 Recommended direction A. This document is authoritative where generated images simplify spacing, introduce tonal variation or omit off-screen states. Design-only handoff: no app source was changed and no runtime behaviour is verified by these mockups.

@@ -42,7 +42,7 @@ class DictationTestActivity : AppCompatActivity() {
             setContentInsetsRelative(0, 0)
         })
         layout.addView(TextView(this).apply {
-            text = "Tap a text box, then the floating microphone above your keyboard. Stop inserts your words; Cancel discards the recording. If insertion fails, your text is kept in Recovered transcripts."
+            text = "Tap a text box, then the floating microphone above your keyboard. Recording continues across screens until Stop. Stop transcribes; Stop & keep saves audio for later. Changed editors keep the transcript in Recovered transcripts."
             setTextAppearance(R.style.SE_Text_Body)
             setTextColor(getColor(R.color.se_text_secondary))
         })
