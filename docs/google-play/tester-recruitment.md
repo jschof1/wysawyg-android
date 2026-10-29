@@ -75,12 +75,11 @@ Suggested public title: **Android testers wanted for Speakeasy, an offline Engli
 > honest feedback about setup, accuracy and anything that breaks.
 >
 > The Play test link isn't available yet. I'm collecting interest now and will
-> email joining instructions when it opens. Replying to this post doesn't start
+> send joining instructions by DM when it opens. Replying to this post doesn't start
 > the 14-day testing period.
 >
-> If you'd like to help, email info@aspectstudio.net with the subject
-> "Speakeasy tester" and your phone model and Android version. Please don't
-> post your Google email address publicly or send recordings or private text.
+> Interested? DM me here on Reddit with your phone model and Android version.
+> Please don't send recordings or private dictated text.
 >
 > Jack, Aspect Studio Software
 
