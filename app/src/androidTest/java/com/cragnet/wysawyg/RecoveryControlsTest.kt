@@ -338,6 +338,16 @@ class RecoveryControlsTest {
         assertEquals(words, Recoveries.get(context).snapshot().items.single().text)
     }
 
+    @Test fun unconfirmedAutomaticInsertionWarnsBeforeOfferingAnotherWrite() = withEditor { scenario ->
+        scenario.onActivity { it.editor.filters = arrayOf(InputFilter.LengthFilter(4)) }
+        beginRecording()
+        stopWithHeldResponse()
+        server.release.countDown()
+        assertTrue(device.wait(Until.hasObject(res("insertRecovery").text("Insert again")), 10000))
+        scenario.onActivity { assertEquals(words.take(4), it.editor.text.toString()) }
+        assertEquals(words, Recoveries.get(context).snapshot().items.single().text)
+    }
+
     @Test fun responseArrivingDuringPauseIsSavedWithoutInsertion() = withEditor { scenario ->
         beginRecording()
         stopWithHeldResponse()

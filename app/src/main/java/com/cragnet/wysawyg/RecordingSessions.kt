@@ -39,5 +39,7 @@ object RecordingSessions {
 data class RecordingDestination(
     val context: DictationContext,
     val isValid: () -> Boolean = { true },
-    val insert: suspend (String) -> Boolean
+    val insert: suspend (String) -> TextDelivery
 )
+
+enum class TextDelivery { CONFIRMED, UNCONFIRMED, NOT_SENT }

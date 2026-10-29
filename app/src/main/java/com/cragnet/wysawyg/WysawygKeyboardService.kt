@@ -185,12 +185,16 @@ class WysawygKeyboardService : InputMethodService() {
         val valid = { owner.get()?.let { it.eligible && it.inputGeneration == generation && it.currentInputConnection != null } == true }
         OverlayService.startFromIme(this, RecordingDestination(DictationContext(editorPackage, editorType), valid) { text ->
             val connection = owner.get()?.currentInputConnection
-            if (!valid() || connection == null) false else commitKeyboardText(connection, text) {
+            if (!valid() || connection == null) TextDelivery.NOT_SENT else when (commitKeyboardText(connection, text) {
                 valid() && owner.get()?.let {
                     it.currentInputConnection === connection &&
                         EditorInputPolicy.allowsText(it.currentInputEditorInfo?.inputType ?: InputType.TYPE_NULL)
                 } == true
-            } == KeyboardCommitResult.CONFIRMED
+            }) {
+                KeyboardCommitResult.CONFIRMED -> TextDelivery.CONFIRMED
+                KeyboardCommitResult.UNCONFIRMED -> TextDelivery.UNCONFIRMED
+                KeyboardCommitResult.FAILED -> TextDelivery.NOT_SENT
+            }
         })
     }
 

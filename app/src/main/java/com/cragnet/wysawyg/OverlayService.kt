@@ -453,7 +453,11 @@ class OverlayService : Service() {
                             it.generation == target.generation && it.node == target.node
                         } == true
                     }) { text ->
-                        TextInjectorService.instance?.insertForDictation(target, text) == TextInjectorService.InsertResult.INSERTED
+                        when (TextInjectorService.instance?.insertForDictation(target, text)) {
+                            TextInjectorService.InsertResult.INSERTED -> TextDelivery.CONFIRMED
+                            TextInjectorService.InsertResult.SENT_UNCONFIRMED -> TextDelivery.UNCONFIRMED
+                            else -> TextDelivery.NOT_SENT
+                        }
                     }
                 }
                 if (requested != null) check(requested.isValid()) { "Tap a non-password text box before dictating." }
@@ -608,19 +612,22 @@ class OverlayService : Service() {
         if (destroyed || session.id != audio.id) return
         pendingAudio = null
         val item = staged
-        val inserted = try {
-            item != null && originalDestination != null && originalDestination === destination &&
-                originalDestination.isValid() && originalDestination.insert(item.text)
+        val delivery = try {
+            if (item != null && originalDestination != null && originalDestination === destination &&
+                originalDestination.isValid()) originalDestination.insert(item.text) else TextDelivery.NOT_SENT
         } catch (e: CancellationException) { throw e }
-        catch (_: Exception) { false }
-        if (inserted && item != null) {
+        catch (_: Exception) { TextDelivery.UNCONFIRMED }
+        if (delivery == TextDelivery.CONFIRMED && item != null) {
             if (!withContext(NonCancellable + Dispatchers.IO) { recoveries.remove(item.id) }) {
                 toast("Inserted, but recovery removal was not saved. Check before inserting again.")
             }
         } else {
             recoveryCollapsed = false
             recoveryIndex = recoveries.snapshot().items.indexOfFirst { it.id == item?.id }.coerceAtLeast(0)
-            toast("Transcript kept in Speakeasy. Tap a text box, then Insert here.")
+            if (delivery == TextDelivery.UNCONFIRMED) {
+                unconfirmedRecoveryId = item?.id
+                toast("Insertion could not be confirmed. Check the field before inserting again; your saved text is kept.")
+            } else toast("Transcript kept in Speakeasy. Tap a text box, then Insert here.")
         }
         destination = null
         setSession(RecordingSession())
@@ -680,6 +687,7 @@ class OverlayService : Service() {
                 throw e
             } catch (e: Exception) {
                 WysawygLogger.e("Recovery insertion failed", e)
+                unconfirmedRecoveryId = item.id
                 toast("Insertion could not be confirmed. Check the field; your saved text is kept.")
             } finally {
                 recoveries.finishInsertion(item.id)
