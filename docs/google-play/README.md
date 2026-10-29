@@ -184,9 +184,10 @@ this requirement. Check the Console for requirements for the chosen account.
 Use the [closed-test checklist and feedback record](closed-testing.md) to start
 the test and retain evidence for the production-access application. No test
 period or production eligibility is claimed until the Console confirms it.
-Jack needs to recruit testers. The [recruitment plan](tester-recruitment.md)
-contains the early-interest invitation, enrollment steps and feedback instructions;
-the route and exact send still require his choice and approval.
+Jack needs to recruit testers and has selected public Android testing communities.
+The [recruitment plan](tester-recruitment.md) contains the first proposed
+r/AndroidClosedTesting post, enrollment steps and feedback instructions. The exact
+public post still requires his approval before publication.
 
 ## References
 

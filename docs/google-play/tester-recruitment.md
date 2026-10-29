@@ -14,9 +14,10 @@ tester must remain opted in continuously for at least 14 days. Google also asks
 about actual use, feedback and changes made before deciding production access.
 
 Start with people who want to dictate English notes or messages on Android.
-Personal contacts and relevant Android communities are possible routes. Jack's
-choice of route is pending. Two candidate public communities were checked on
-29 October 2026:
+Jack selected public Android testing communities on 29 October 2026. Prepare the
+first individual text post for r/AndroidClosedTesting, with the exact invitation
+below awaiting his approval. No personal-contact outreach is planned. Two public
+communities were checked on 29 October 2026:
 
 - [r/AndroidClosedTesting](https://www.reddit.com/r/AndroidClosedTesting/)
 - [r/AndroidAppTesters](https://www.reddit.com/r/AndroidAppTesters/)
@@ -25,7 +26,8 @@ Both carry tester-recruitment posts. Their homepages expose community rules even
 though the separate rules pages did not render those rules in the research view.
 The current r/AndroidClosedTesting rules prohibit links to other subreddits; use
 an individual post without cross-community links. Confirm any additional posting
-requirements in its live composer before asking Jack to approve the final post.
+requirements in its live composer before publication. If they change the text or
+audience, show the revised complete draft and obtain fresh approval.
 The early-interest draft has not yet been submitted or accepted by moderators.
 
 r/AndroidAppTesters expects reciprocal testing and official-store distribution
@@ -42,34 +44,43 @@ API key or subscription. The current estimated app download is about 202 MB.
 ## Draft invitation for early interest
 
 This draft can be used before the Play test exists. It is not sent or approved.
-Before sending, show Jack the exact selected audience, sender account, route,
-complete text and attachments, then wait for approval of that current draft.
-No attachments are proposed.
+The approval packet is:
+
+- Audience: public members and visitors of r/AndroidClosedTesting.
+- Route: one new Reddit text post in
+  [r/AndroidClosedTesting](https://www.reddit.com/r/AndroidClosedTesting/).
+- Sender: Jack's existing Reddit account; confirm its identity in the signed-in
+  composer before posting. Do not create an account or accept new terms silently.
+- Attachments: none.
+- Approval state: audience category chosen; this exact post is not yet approved.
+
+Show Jack this audience, route, title and entire body before requesting approval.
+After approval, confirm any composer requirements and the sender. Record the
+actual public post URL and visible publication/moderation status. A submitted
+post awaiting moderation is not confirmed visible or evidence of recruited users.
 
 Suggested public title: **Android testers wanted for Speakeasy, an offline English dictation app**
 
-> I'm preparing Speakeasy for Google Play and looking for Android users to help
-> test it. It turns English speech into text on your phone, with a floating mic
-> designed to work alongside your usual keyboard.
+> I'm looking for volunteers to test Speakeasy, an Android app that turns English
+> speech into text on your phone. Its floating mic is designed to work alongside
+> your usual keyboard.
 >
-> The test will be free, and you can try the on-device features without a cloud
-> account or API key. Floating dictation asks for microphone, overlay and
-> Accessibility permissions, with an explanation before you choose whether to
-> enable them. There's also an optional Speakeasy keyboard.
+> The test is free, and on-device dictation needs no cloud account or API key.
+> Floating dictation uses microphone, overlay and Accessibility permissions,
+> explained in the app before you choose whether to enable them.
 >
-> I'm looking for people willing to remain opted into the Play closed test for
-> at least 14 consecutive days, try it for everyday notes or messages, and send
-> honest feedback about setup, accuracy and anything that breaks. You'll need
-> an Android 8 or newer phone that supports the app; the current download is
-> about 202 MB.
+> You'll need a compatible Android 8 or newer phone; the current download is
+> about 202 MB. When the Play closed test opens, please remain opted in for at
+> least 14 consecutive days, try it for everyday notes or messages, and share
+> honest feedback about setup, accuracy and anything that breaks.
 >
-> Google is still reviewing the developer account, so the Play test link isn't
-> available yet. This is an invitation to register interest, not an install link.
+> The Play test link isn't available yet. I'm collecting interest now and will
+> email joining instructions when it opens. Replying to this post doesn't start
+> the 14-day testing period.
 >
 > If you'd like to help, email info@aspectstudio.net with the subject
 > "Speakeasy tester" and your phone model and Android version. Please don't
-> post your Google email address or send recordings or private dictated text.
-> I'll send the joining instructions when the Play test is available.
+> post your Google email address publicly or send recordings or private text.
 >
 > Jack, Aspect Studio Software
 

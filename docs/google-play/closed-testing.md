@@ -12,8 +12,10 @@ remain locked until account checks complete. No Play test link exists.
 Jack confirmed on 29 October 2026 that testers need to be recruited. Use the
 [recruitment plan and draft invitation](tester-recruitment.md) to collect interest
 while account review is pending. Aim for about 20 willing testers; Google's
-minimum remains 12 qualifying testers. The recruitment route is awaiting Jack's
-choice. No invitations have been sent, and no test start date is claimed.
+minimum remains 12 qualifying testers. Jack selected public Android testing
+communities, and r/AndroidClosedTesting is the proposed first audience. The exact
+first post awaits his approval. No invitations have been sent, and no test start
+date is claimed.
 
 ## Start the test
 
