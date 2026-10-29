@@ -33,6 +33,8 @@ Home. Both controls share a per-transcript insertion guard. A successful command
 alone does not delete saved text: readback must confirm the full insertion. A
 truncated or unconfirmed write retains the copy and asks the user to check the
 field before trying again. There is no automatic second write after dispatch.
+Automatic completion also distinguishes confirmed, unconfirmed and unsent text,
+so a possible insertion is never presented as an invitation to insert afresh.
 
 The old focused-window lookup plus keyboard visibility check could reject an
 otherwise valid current input. Fixing only that lookup was considered, but would
@@ -58,6 +60,16 @@ existing service can serve both entry points without requiring overlay permissio
 for the optional keyboard.
 
 ## Verification
+
+The 1.7.1 input update at `05fd59bb7dc0155fe64b02e89aca816e739fb0a7`
+passed [Android CI](https://github.com/jschof1/wysawyg-android/actions/runs/40906816042):
+98 tests in each of debug and release, no lint errors or fatal findings, and
+successful APK, device-test APK and release-bundle compilation. The existing
+109 lint warnings remain in each variant. The cached-only local runner also
+passed 98 tests. Added device regressions cover closing and reopening the
+keyboard, a missing editable accessibility node, password rejection, and
+unconfirmed manual and automatic insertion. They are compiled, not executed;
+the T3 Android device service still fails during setup.
 
 The base revision passed 65 JVM tests. The implementation passes 79 JVM tests
 through the installed Kotlin compiler and JUnit, including durable audio and
