@@ -111,9 +111,12 @@ and debug package remain `com.cragnet.wysawyg`.
    Both automated and owner-attempted checkout stalled. After the reset, Jack
    linked the profiles again. The existing signup now has every section filled
    through Terms with the same confirmed answers and agreements; its final
-   payment dialog remains blank. Keep this form available for recovery rather
-   than starting another registration. A manual test releasing only this tab's
-   automated browser connection is pending; interference is a hypothesis.
+   payment dialog was blank. Jack then cancelled the tab's ChatGPT debugging
+   banner and reported that the payment form opens, but is not yet paid. Keep
+   browser automation disconnected while he pays and completes any bank
+   verification directly in Google. This supports automation involvement in the
+   stall, but does not establish its exact cause. Continue this registration
+   from the payment result rather than starting another registration.
    Google accepted the exact approved support report and both screenshots through
    `https://play.google.com/console/u/0/help` on 29 October 2026. Its email
    acknowledgement supplied a case reference, kept with the private receipt.

@@ -116,8 +116,12 @@ under the existing approval, and the same USD 25 checkout was resumed. Every
 preceding step is complete in this form, but the payment iframe is blank again.
 The form is retained at Terms. Native browser recovery was interrupted by changes
 to the selected browser view; it did not establish that the automation connection
-was detached. A manual test cancelling only this tab's ChatGPT debugging banner
-is pending. Whether automation contributes to the blank iframe is unproved.
+was detached. Jack then cancelled the tab's ChatGPT debugging banner and reported
+that the payment form opens, but is not yet paid. Browser automation is being
+kept disconnected while he completes checkout and any bank verification directly
+in Google. This supports automation involvement in the stall; the exact technical
+cause remains unproved. Payment, account creation and the Console dashboard still
+need confirmation. Resume from that result without restarting signup.
 
 His approval of both agreements and the USD 25 fee remains valid for the unchanged
 action. No payment receipt, completed registration or app upload has been verified.
