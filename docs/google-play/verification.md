@@ -102,9 +102,23 @@ draft before submission; both `payments-profile-blank.png` and
 Ticket submitted and stated that it will reply by email within two working days,
 with some tickets requiring longer. The confirmation showed the intended account
 contact, but no case reference. The receipt screenshot and exact report are kept
-privately with the release evidence, outside the repository. No second report was
-submitted. Google's reply is the next registration-recovery gate; check for it by
-2 November 2026. Ticket acceptance does not establish a resolved registration.
+privately with the release evidence, outside the repository. Its email
+acknowledgement to the owner subsequently supplied a case reference, also stored
+privately. No second report was submitted. Check for Google's reply by
+2 November 2026 if recovery remains blocked. Ticket acceptance does not establish
+a resolved registration.
+
+Jack's later screenshot and the live page showed both profile steps completed
+again, with About you in progress. The existing signup was resumed from that step;
+it was not a second developer account. About you, Apps and contact details were
+restored from the already-confirmed answers. The required agreements were applied
+under the existing approval, and the same USD 25 checkout was resumed. Every
+preceding step is complete in this form, but the payment iframe is blank again.
+The form is retained at Terms. Native browser recovery was interrupted by changes
+to the selected browser view; it did not establish that the automation connection
+was detached. A manual test cancelling only this tab's ChatGPT debugging banner
+is pending. Whether automation contributes to the blank iframe is unproved.
+
 His approval of both agreements and the USD 25 fee remains valid for the unchanged
 action. No payment receipt, completed registration or app upload has been verified.
 Linking a payments profile does not establish that Google's identity verification

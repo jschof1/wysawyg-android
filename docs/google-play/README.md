@@ -108,13 +108,17 @@ and debug package remain `com.cragnet.wysawyg`.
    confirmed by Jack after Google rejected **Aspect Studio** as already registered.
    The public name can differ from the verified individual's legal name. Jack
    approved both registration agreements and the USD 25 fee on 29 October 2026.
-   Both automated and owner-attempted checkout stalled. Signup reset, and the
-   embedded payments-profile selector now remains blank. After Jack approved the
-   exact report and both screenshots, Google confirmed Ticket submitted through
-   `https://play.google.com/console/u/0/help` on 29 October 2026. Google says it will
-   reply by email within two working days, although some cases take longer. No
-   case reference appeared on the page. Check for a reply by 2 November 2026 and
-   resume registration through Google's supported recovery route. Verify
+   Both automated and owner-attempted checkout stalled. After the reset, Jack
+   linked the profiles again. The existing signup now has every section filled
+   through Terms with the same confirmed answers and agreements; its final
+   payment dialog remains blank. Keep this form available for recovery rather
+   than starting another registration. A manual test releasing only this tab's
+   automated browser connection is pending; interference is a hypothesis.
+   Google accepted the exact approved support report and both screenshots through
+   `https://play.google.com/console/u/0/help` on 29 October 2026. Its email
+   acknowledgement supplied a case reference, kept with the private receipt.
+   Google says it will reply within two working days, although some cases take
+   longer. Check for a reply by 2 November 2026 if recovery remains blocked. Verify
    the actual payment receipt and account registration before upload. Preserve
    the existing approval for the unchanged action; approval is not payment proof.
    Google also displays the verified legal name, country and developer email for
