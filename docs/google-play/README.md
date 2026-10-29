@@ -184,6 +184,9 @@ this requirement. Check the Console for requirements for the chosen account.
 Use the [closed-test checklist and feedback record](closed-testing.md) to start
 the test and retain evidence for the production-access application. No test
 period or production eligibility is claimed until the Console confirms it.
+Jack needs to recruit testers. The [recruitment plan](tester-recruitment.md)
+contains the early-interest invitation, enrollment steps and feedback instructions;
+the route and exact send still require his choice and approval.
 
 ## References
 

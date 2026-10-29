@@ -9,6 +9,12 @@ No test has started. The publisher account is registered and paid; submitted
 identity documents are under Google review. Phone verification and app creation
 remain locked until account checks complete. No Play test link exists.
 
+Jack confirmed on 29 October 2026 that testers need to be recruited. Use the
+[recruitment plan and draft invitation](tester-recruitment.md) to collect interest
+while account review is pending. Aim for about 20 willing testers; Google's
+minimum remains 12 qualifying testers. The recruitment route is awaiting Jack's
+choice. No invitations have been sent, and no test start date is claimed.
+
 ## Start the test
 
 1. Finish account and identity verification, including Google's Android-device
