@@ -66,6 +66,7 @@ Support: info@aspectstudio.net
 Release notes for 1.7.0:
 
 - Updated for Android 16.
+- Recording continues across keyboard and screen changes, with saved-audio recovery.
 - Added privacy and permission choices.
 - Added separate consent for text access and cloud providers.
 - Settings backups now exclude API keys and cannot enable cloud uploads.

@@ -6,8 +6,10 @@ Debug builds retain `com.cragnet.wysawyg` for the existing sideloaded app.
 
 Jack owns the developer account and has authorised publication. The individual
 account is registered and its USD 25 payment is confirmed. The live Console shows
-**Aspect Studio Software** as the publisher. Identity, real Android device and
-phone verification, the required test track and review are still outstanding.
+**Aspect Studio Software** as the publisher. Identity documents are submitted and
+Google's review is pending. Phone verification remains locked until approval;
+the current dashboard no longer lists the earlier Android-device task, so its
+completion is not independently confirmed. App testing and review remain pending.
 A build passing here does not mean Google has approved the app or granted
 production access.
 
@@ -109,8 +111,11 @@ and debug package remain `com.cragnet.wysawyg`.
    requires identity verification, access to a real Android device through the
    Play Console mobile app, and phone verification after identity approval.
    **Create app is disabled until the account verifications are complete.** Jack
-   completes identity documents directly inside Google; leave browser automation
-   disconnected while he does so if the embedded verification panel stalls.
+   submitted identity documents directly inside Google. The live dashboard now
+   says Google is verifying his identity and will email the account owner when
+   complete; this may take a few days. Phone verification remains locked until
+   identity approval. The Android-device task is no longer shown, and its former
+   details link redirects Home; do not infer completion from that absence alone.
    Payment and dashboard evidence are kept privately. The earlier approved support
    case remains available if recovery is needed; do not submit another report
    without a current approved draft. See the verification record for the history.

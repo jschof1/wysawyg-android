@@ -1,5 +1,48 @@
 # Release preparation verification
 
+## Current signed build
+
+The current app source includes persistent recording and durable audio recovery
+from `2b5ddb0`, with an instrumentation-test context correction in
+[`03134d3`](https://github.com/jschof1/wysawyg-android/commit/03134d371d2f70a53cb7b8822a479fb865fb81d2).
+The upload-signed build passed in
+[GitHub Actions run 40881123380](https://github.com/jschof1/wysawyg-android/actions/runs/40881123380)
+on 29 October 2026. The initial
+[run at 2b5ddb0](https://github.com/jschof1/wysawyg-android/actions/runs/40879741030)
+failed to compile an instrumentation test because its cache directory used an
+undefined context. The correction uses the instrumentation target context;
+the existing test now compiles without weakening its assertions.
+
+| Check | Current result |
+| --- | --- |
+| Debug unit tests | 79 passed; no failures, errors or skips |
+| Release unit tests | 79 passed; no failures, errors or skips |
+| Lint, both variants | No errors; 109 warnings per variant |
+| APK, device-test APK and signed release AAB compilation | Passed |
+| Bundletool, release package and API target | Valid; `net.aspectstudio.speakeasy`; API 36 |
+| Release data flags | Not debuggable; backups and cleartext disabled; no direct battery exemption request |
+| Native and APK alignment | All four ARM64 ELF libraries and generated APKs support 16 KB alignment |
+| Estimated compressed download | 202,233,969–202,286,740 bytes; below the 500 MB base-module limit |
+| Upload signature | Verified in CI against the recorded upload certificate; not a debug signer |
+| Privacy policy | Bundled source matches; public URL returned HTTPS 200 with the same updated text |
+| Android runtime and microphone tests | Not executed; remain required |
+
+Current [signed AAB](https://github.com/jschof1/wysawyg-android/actions/runs/40881123380/artifacts/12900622336),
+[verification reports](https://github.com/jschof1/wysawyg-android/actions/runs/40881123380/artifacts/12900572177),
+[device-test APK](https://github.com/jschof1/wysawyg-android/actions/runs/40881123380/artifacts/12901125973),
+and [submission packet](https://github.com/jschof1/wysawyg-android/actions/runs/40881123380/artifacts/12901235863).
+The report, submission and device-test archives were saved on the verified Jack
+Drive and matched GitHub's SHA-256 digests; their ZIP CRCs also passed. Signed-bundle
+preservation is in progress under
+`Mac-Offload/Play-Releases/speakeasy-1.7.0-03134d3`.
+The updated policy SHA-256 is
+`57159a5104c897d4d6540958a076534570fd088a6cec0a3df9c684ce40a2bee8`.
+
+The older signed build below does not cover these recording or privacy-policy
+changes and must not be presented as the current build.
+
+## Earlier signed build
+
 The signed Play build includes the confirmed public publisher name
 **Aspect Studio Software** and passed the automated release checks.
 
@@ -137,6 +180,14 @@ after Google's identity approval. **Create app is disabled until account
 verifications are complete.** Identity verification was opened for Jack to complete
 directly inside Google. The dashboard screenshot and payment receipt metadata are
 private release evidence; no identity documents were collected by the agent.
+
+Jack subsequently reported that he submitted the identity documents. The live
+Console confirms **Google is verifying your identity** and says the account owner
+will receive an email when complete, which may take a few days. Phone verification
+is still locked until Google's identity approval, and **Create app** is still
+disabled. The Android-device task is no longer shown; its former details link
+redirects to Home. Its completion has not been independently confirmed.
+The pending-review screenshot is private. No documents need to be submitted again.
 
 Remaining actions are identity, Android device and phone verification, first upload
 of the chosen public package ID, app device acceptance and media capture,
