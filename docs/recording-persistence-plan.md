@@ -71,6 +71,14 @@ keyboard, a missing editable accessibility node, password rejection, and
 unconfirmed manual and automatic insertion. They are compiled, not executed;
 the T3 Android device service still fails during setup.
 
+Version 1.7.1 (13) was installed in place on the Samsung SM-A556E over wireless
+debugging on 29 October 2026. The installed version and original install time
+were verified; every file under `shared_prefs` and `no_backup` matched its
+pre-update checksum. The installation receipt is on Jack Drive at
+`Mac-Offload/Play-Releases/speakeasy-1.7.1-05fd59b/phone-install-20261029.json`.
+Installation and data preservation are verified; the handset interaction tests
+above remain unexecuted.
+
 The base revision passed 65 JVM tests. The implementation passes 79 JVM tests
 through the installed Kotlin compiler and JUnit, including durable audio and
 line-break transcript recovery. The local Android SDK has API 34 while this project requires API 36. The
