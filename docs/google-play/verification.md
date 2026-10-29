@@ -71,13 +71,17 @@ confirmed that he has the original author's permission to redistribute this fork
 
 The regular browser is signed into the intended owner's Google account. On
 29 October 2026, Google showed both Payments profile and Public profile as
-completed after Jack linked the profile directly. Registration is now at About
-you. The factual Speakeasy experience and publisher website are filled in; Jack
-must confirm whether he has used other Google accounts to access Play Console
-within the past six months. No registration terms were accepted, registration fee
-paid, or app uploaded. Linking a payments profile does not establish that Google's
-identity verification is complete. Remaining actions are account registration and
-identity verification, first upload of the chosen public package ID, device acceptance and media capture,
+completed after Jack linked the profile directly. Jack confirmed no other Play
+Console accounts in the past six months. About you, Apps and How Google contacts
+you are complete. The current app plan is one app, with future monetisation
+undecided and none of Google's listed specialist app categories selected.
+Registration is now at Terms, showing a one-time USD 25 fee. The two required
+agreement boxes and optional feedback/announcement boxes remain unchecked while
+Jack reviews the agreements, age declaration and fee approval. No registration
+terms were accepted, registration fee paid, or app uploaded. Linking a payments
+profile does not establish that Google's identity verification is complete.
+Remaining actions are account registration and identity verification, first upload
+of the chosen public package ID, device acceptance and media capture,
 Console declarations, and the individual account's closed test and
 production-access application. Follow the
 [release guide](README.md) before submission.
