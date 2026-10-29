@@ -75,11 +75,18 @@ completed after Jack linked the profile directly. Jack confirmed no other Play
 Console accounts in the past six months. About you, Apps and How Google contacts
 you are complete. The current app plan is one app, with future monetisation
 undecided and none of Google's listed specialist app categories selected.
-Registration is now at Terms, showing a one-time USD 25 fee. The two required
-agreement boxes and optional feedback/announcement boxes remain unchecked while
-Jack reviews the agreements, age declaration and fee approval. No registration
-terms were accepted, registration fee paid, or app uploaded. Linking a payments
-profile does not establish that Google's identity verification is complete.
+Jack approved both registration agreements and the one-time USD 25 fee on
+29 October 2026. The two required agreement boxes were checked and Create account
+and pay was clicked; the optional feedback/announcement boxes remain unchecked.
+Google's payment dialog stayed on a loading spinner. Closing it left Back and
+Create account and pay disabled. A fresh Console tab returned to signup, and the
+profile selector also stalled in that fresh session. Browser diagnostics were
+unavailable while Browser Use was resolving a paused document response; the
+underlying cause was not established. The recovery tab was closed and the original
+form retained for Jack to complete checkout directly. His approval of both
+agreements and the USD 25 fee remains valid for the unchanged action. No payment receipt,
+completed registration or app upload has been verified. Linking a payments profile
+does not establish that Google's identity verification is complete.
 Remaining actions are account registration and identity verification, first upload
 of the chosen public package ID, device acceptance and media capture,
 Console declarations, and the individual account's closed test and

@@ -107,7 +107,10 @@ and debug package remain `com.cragnet.wysawyg`.
    verification. Use **Aspect Studio Software** as the public developer name,
    confirmed by Jack after Google rejected **Aspect Studio** as already registered.
    The public name can differ from the verified individual's legal name. Jack
-   must approve the registration agreement and fee before those steps are completed.
+   approved both registration agreements and the USD 25 fee on 29 October 2026.
+   Google's automated checkout stalled; direct completion was requested. Verify
+   the actual payment receipt and account registration before upload. Preserve
+   the existing approval for the unchanged action; approval is not payment proof.
    Google also displays the verified legal name, country and developer email for
    individual accounts. Check the [identity information requirements](https://support.google.com/googleplay/android-developer/answer/13628312)
    and review the final registration details before accepting the agreement.
