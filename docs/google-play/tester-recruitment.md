@@ -21,10 +21,18 @@ choice of route is pending. Two candidate public communities were checked on
 - [r/AndroidClosedTesting](https://www.reddit.com/r/AndroidClosedTesting/)
 - [r/AndroidAppTesters](https://www.reddit.com/r/AndroidAppTesters/)
 
-Both carry tester-recruitment posts. Their separate rules pages did not expose
-readable rules in the research view. Check the selected community's live rules
-before posting; its suitability for this exact early-interest post is not yet
-confirmed. Do not promise reciprocal tests, payments or reviews on Jack's behalf.
+Both carry tester-recruitment posts. Their homepages expose community rules even
+though the separate rules pages did not render those rules in the research view.
+The current r/AndroidClosedTesting rules prohibit links to other subreddits; use
+an individual post without cross-community links. Confirm any additional posting
+requirements in its live composer before asking Jack to approve the final post.
+The early-interest draft has not yet been submitted or accepted by moderators.
+
+r/AndroidAppTesters expects reciprocal testing and official-store distribution
+links, so defer that route until a real Play test exists and Jack has chosen
+whether to undertake the reciprocal testing. Do not promise reciprocal tests,
+payments or reviews on his behalf. Recheck the chosen community's current rules
+before sending its final draft.
 
 Testers need a Google Play account and a supported ARM64 Android phone running
 Android 8 or later. Prioritise a mixture of phones, including Android 15 and 16.
