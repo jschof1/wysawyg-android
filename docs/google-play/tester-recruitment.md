@@ -59,27 +59,29 @@ After approval, confirm any composer requirements and the sender. Record the
 actual public post URL and visible publication/moderation status. A submitted
 post awaiting moderation is not confirmed visible or evidence of recruited users.
 
-Suggested public title: **Android testers wanted for Speakeasy, an offline English dictation app**
+Suggested public title: Looking for Android testers for Speakeasy
 
-> I'm looking for volunteers to test Speakeasy, an Android app that turns English
-> speech into text on your phone. Its floating mic is designed to work alongside
-> your usual keyboard.
+> I've been working on Speakeasy, an Android app that turns English speech into
+> text. It has a floating mic you can use alongside your usual keyboard.
 >
-> The test is free, and on-device dictation needs no cloud account or API key.
-> Floating dictation uses microphone, overlay and Accessibility permissions,
-> explained in the app before you choose whether to enable them.
+> Dictation runs on your phone and works offline. You don't need a cloud account
+> or API key.
 >
-> You'll need a compatible Android 8 or newer phone; the current download is
-> about 202 MB. When the Play closed test opens, please remain opted in for at
-> least 14 consecutive days, try it for everyday notes or messages, and share
-> honest feedback about setup, accuracy and anything that breaks.
+> I need people to try it for notes or messages and tell me what works and what
+> needs fixing. When the Play closed test opens, please stay opted in for at
+> least 14 consecutive days.
 >
-> The Play test link isn't available yet. I'm collecting interest now and will
-> send joining instructions by DM when it opens. Replying to this post doesn't start
-> the 14-day testing period.
+> The test is free. You'll need a compatible Android 8 or newer phone. The
+> download is about 202 MB.
 >
-> Interested? DM me here on Reddit with your phone model and Android version.
-> Please don't send recordings or private dictated text.
+> The floating mic needs microphone, overlay and Accessibility permissions.
+> The app explains these before you decide whether to enable them.
+>
+> The Play test link isn't ready yet. I'll DM you the joining instructions when
+> it opens. The 14 days start when you join the test through Google Play.
+>
+> DM me with your phone model and Android version if you'd like to help.
+> No need to send recordings or private text.
 >
 > Jack, Aspect Studio Software
 
