@@ -108,7 +108,10 @@ and debug package remain `com.cragnet.wysawyg`.
    confirmed by Jack after Google rejected **Aspect Studio** as already registered.
    The public name can differ from the verified individual's legal name. Jack
    approved both registration agreements and the USD 25 fee on 29 October 2026.
-   Google's automated checkout stalled; direct completion was requested. Verify
+   Both automated and owner-attempted checkout stalled. Signup reset, and the
+   embedded payments-profile selector now remains blank. A preregistration support
+   report is prepared at `https://play.google.com/console/u/0/help`, awaiting Jack's
+   approval of its exact text and screenshots; it has not been submitted. Verify
    the actual payment receipt and account registration before upload. Preserve
    the existing approval for the unchanged action; approval is not payment proof.
    Google also displays the verified legal name, country and developer email for

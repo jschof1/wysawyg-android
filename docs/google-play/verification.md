@@ -73,8 +73,9 @@ The regular browser is signed into the intended owner's Google account. On
 29 October 2026, Google showed both Payments profile and Public profile as
 completed after Jack linked the profile directly. Jack confirmed no other Play
 Console accounts in the past six months. About you, Apps and How Google contacts
-you are complete. The current app plan is one app, with future monetisation
-undecided and none of Google's listed specialist app categories selected.
+you were completed in that registration attempt. The current app plan is one app,
+with future monetisation undecided and none of Google's listed specialist app
+categories selected.
 Jack approved both registration agreements and the one-time USD 25 fee on
 29 October 2026. The two required agreement boxes were checked and Create account
 and pay was clicked; the optional feedback/announcement boxes remain unchecked.
@@ -82,10 +83,24 @@ Google's payment dialog stayed on a loading spinner. Closing it left Back and
 Create account and pay disabled. A fresh Console tab returned to signup, and the
 profile selector also stalled in that fresh session. Browser diagnostics were
 unavailable while Browser Use was resolving a paused document response; the
-underlying cause was not established. The recovery tab was closed and the original
-form retained for Jack to complete checkout directly. His approval of both
-agreements and the USD 25 fee remains valid for the unchanged action. No payment receipt,
-completed registration or app upload has been verified. Linking a payments profile
+underlying cause was not established. Jack subsequently reported that direct
+checkout also stalled and signup returned to the beginning. The individual route
+and approved developer name were restored, but the embedded payments-profile
+selector again remained blank. The Google Payments homepage loaded normally for
+the same account; opening the observed profile-selector URL separately displayed
+the existing individual profile, but its controls did not complete the flow.
+Captured cookie exclusions were only DomainMismatch and NotOnPath, which do not
+establish third-party-cookie blocking. Native browser input did not resolve the
+stalled widget. No browser protections or account data were changed.
+
+Google's legacy registration-support link redirected to signup. The Help Centre's
+general contact route reached the working preregistration form at
+`https://play.google.com/console/u/0/help`. A report and two screenshots are prepared
+for review; the report is not submitted and has no support case reference. Jack's
+approval of this exact external-message draft is pending under AGENTS.md.
+His approval of both agreements and the USD 25 fee remains valid for the unchanged
+action. No payment receipt, completed registration or app upload has been verified.
+Linking a payments profile
 does not establish that Google's identity verification is complete.
 Remaining actions are account registration and identity verification, first upload
 of the chosen public package ID, device acceptance and media capture,
