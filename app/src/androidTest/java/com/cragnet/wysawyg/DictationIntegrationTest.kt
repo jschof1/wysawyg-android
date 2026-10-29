@@ -415,7 +415,7 @@ class DictationIntegrationTest {
     @Test fun microphoneProducesValidWavAndCanRestartAfterClosing() {
         ActivityScenario.launch(DictationTestActivity::class.java).use { scenario ->
             lateinit var recorder: AudioRecorder
-            val audioDirectory = java.io.File(context.cacheDir, "recorder-test-${java.util.UUID.randomUUID()}")
+            val audioDirectory = java.io.File(instrumentation.targetContext.cacheDir, "recorder-test-${java.util.UUID.randomUUID()}")
             val audioStore = DurablePcmStore(audioDirectory)
             scenario.onActivity { activity ->
                 recorder = AudioRecorder(activity)
