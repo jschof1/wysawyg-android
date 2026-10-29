@@ -69,12 +69,15 @@ confirmed that he has the original author's permission to redistribute this fork
 `cragnet/wysawyg-android` on Google Play. These confirmations are recorded in
 [the decision trail](decisions.tsv).
 
-The regular browser is signed into the intended owner's Google account.
-Registration is waiting at the individual payments-profile step. Google's
-selector stayed loading after a reload and retry; direct completion was requested
-from Jack. No profile was linked, terms accepted, registration fee paid, or app
-uploaded. Remaining actions are account registration and identity verification,
-first upload of the chosen public package ID, device acceptance and media capture,
+The regular browser is signed into the intended owner's Google account. On
+29 October 2026, Google showed both Payments profile and Public profile as
+completed after Jack linked the profile directly. Registration is now at About
+you. The factual Speakeasy experience and publisher website are filled in; Jack
+must confirm whether he has used other Google accounts to access Play Console
+within the past six months. No registration terms were accepted, registration fee
+paid, or app uploaded. Linking a payments profile does not establish that Google's
+identity verification is complete. Remaining actions are account registration and
+identity verification, first upload of the chosen public package ID, device acceptance and media capture,
 Console declarations, and the individual account's closed test and
 production-access application. Follow the
 [release guide](README.md) before submission.
