@@ -37,6 +37,14 @@ class RecoveryStore(private val file: File, private val now: () -> Long = System
     private var unreadable = false
     private var writeFailed = false
     private var expiredCount = 0
+    private val inserting = mutableSetOf<String>()
+
+    @Synchronized fun tryBeginInsertion(id: String): Boolean {
+        expire()
+        return items.any { it.id == id } && inserting.add(id)
+    }
+
+    @Synchronized fun finishInsertion(id: String) { inserting.remove(id) }
 
     init {
         file.absoluteFile.parentFile?.listFiles { _, name ->

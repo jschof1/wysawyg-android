@@ -73,6 +73,18 @@ class RecoveryStoreTest {
         assertTrue(RecoveryStore(file).snapshot().unreadable)
     }
 
+    @Test fun overlayAndKeyboardCannotInsertTheSameItemTogether() {
+        val store = RecoveryStore(file())
+        val item = store.stage("Private saved text")
+        assertTrue(store.tryBeginInsertion(item.id))
+        assertFalse(store.tryBeginInsertion(item.id))
+        store.finishInsertion(item.id)
+        assertTrue(store.tryBeginInsertion(item.id))
+        assertTrue(store.remove(item.id))
+        store.finishInsertion(item.id)
+        assertFalse(store.tryBeginInsertion(item.id))
+    }
+
     @Test fun diskFailureRetainsWholeTextAndBlocksNewCapture() {
         val blocked = temporary.newFile("not-a-directory")
         val store = RecoveryStore(File(blocked, "recoveries.bin"))

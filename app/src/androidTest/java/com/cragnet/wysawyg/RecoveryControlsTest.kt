@@ -8,7 +8,12 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
+import android.os.Build
+import android.text.InputFilter
 import android.text.InputType
+import android.view.View
+import android.view.accessibility.AccessibilityNodeInfo
+import android.view.inputmethod.InputMethodManager
 import androidx.core.content.ContextCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -28,6 +33,7 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import org.junit.Assume.assumeTrue
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
@@ -243,7 +249,7 @@ class RecoveryControlsTest {
         assertEquals(1, server.requests.get())
     }
 
-    @Test fun passwordHidesRecoveryAndPauseRestartRestoresSavedTranscript() = withEditor { scenario ->
+    @Test fun passwordRejectsInsertionAndPauseRestartRestoresSavedTranscript() = withEditor { scenario ->
         beginRecording()
         stopWithHeldResponse()
         scenario.onActivity { it.secondEditor.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }
@@ -252,7 +258,10 @@ class RecoveryControlsTest {
         server.release.countDown()
         await("Successful response must be durably recovered") { Recoveries.get(context).snapshot().items.any { it.text == words } }
         SystemClock.sleep(300)
-        assertFalse(device.hasObject(res("recoveryPanel")))
+        assertTrue("Private saved text remains available independently of the destination", device.wait(Until.hasObject(res("recoveryPanel")), 5000))
+        requireNotNull(device.findObject(res("insertRecovery"))).click()
+        device.waitForIdle()
+        assertEquals(words, Recoveries.get(context).snapshot().items.single().text)
         scenario.onActivity { assertTrue(it.editor.text.isEmpty()); assertTrue(it.secondEditor.text.isEmpty()) }
         val file = File(context.noBackupFilesDir, "recovered-transcripts.bin")
         assertEquals(words, RecoveryStore(file).snapshot().items.single().text)
@@ -271,6 +280,62 @@ class RecoveryControlsTest {
         requireNotNull(device.findObject(res("discardRecovery"))).click()
         await("Explicit discard removes only this recovery") { Recoveries.get(context).snapshot().items.isEmpty() }
         assertTrue(RecoveryStore(file).snapshot().items.isEmpty())
+    }
+
+    @Test fun savedTextSurvivesKeyboardCloseAndReopenWithoutClipboard() = withEditor { scenario ->
+        scenario.onActivity {
+            it.editor.setText("hello world")
+            it.editor.setSelection(6)
+            it.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("sentinel", "keep clipboard"))
+            Recoveries.get(it).stage(words)
+            TextInjectorService.instance?.refreshEditor()
+        }
+        assertTrue(device.wait(Until.hasObject(res("recoveryText").text(words)), 5000))
+        device.pressBack()
+        assertTrue("Saved text must remain reachable with the keyboard closed", device.wait(Until.hasObject(res("insertRecovery")), 5000))
+        scenario.onActivity {
+            it.editor.requestFocus()
+            it.getSystemService(InputMethodManager::class.java).showSoftInput(it.editor, InputMethodManager.SHOW_IMPLICIT)
+        }
+        device.waitForIdle()
+        requireNotNull(device.findObject(res("insertRecovery"))).click()
+        await("Confirmed insertion removes only this saved item") { Recoveries.get(context).snapshot().items.isEmpty() }
+        scenario.onActivity { assertEquals("hello $words world", it.editor.text.toString()) }
+        assertEquals("keep clipboard", clipboardText())
+        assertEquals(0, server.requests.get())
+    }
+
+    @Test fun currentInputInsertsEvenWhenAccessibilityCannotFindEditableNode() = withEditor { scenario ->
+        assumeTrue(Build.VERSION.SDK_INT >= 33)
+        scenario.onActivity {
+            it.editor.accessibilityDelegate = object : View.AccessibilityDelegate() {
+                override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfo) {
+                    super.onInitializeAccessibilityNodeInfo(host, info)
+                    info.isEditable = false
+                }
+            }
+            it.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("sentinel", "keep clipboard"))
+            Recoveries.get(it).stage(words)
+            TextInjectorService.instance?.refreshEditor()
+        }
+        device.waitForIdle()
+        instrumentation.runOnMainSync { assertNull(TextInjectorService.instance?.captureTarget()) }
+        requireNotNull(device.wait(Until.findObject(res("insertRecovery")), 5000)).click()
+        await("Current input can insert without a cached accessibility editor") { Recoveries.get(context).snapshot().items.isEmpty() }
+        scenario.onActivity { assertEquals(words, it.editor.text.toString()) }
+        assertEquals("keep clipboard", clipboardText())
+    }
+
+    @Test fun truncatedInsertionKeepsPrivateTextAndWarnsBeforeRetry() = withEditor { scenario ->
+        scenario.onActivity {
+            it.editor.filters = arrayOf(InputFilter.LengthFilter(4))
+            Recoveries.get(it).stage(words)
+            TextInjectorService.instance?.refreshEditor()
+        }
+        requireNotNull(device.wait(Until.findObject(res("insertRecovery")), 5000)).click()
+        assertTrue(device.wait(Until.hasObject(res("insertRecovery").text("Insert again")), 5000))
+        scenario.onActivity { assertEquals(words.take(4), it.editor.text.toString()) }
+        assertEquals(words, Recoveries.get(context).snapshot().items.single().text)
     }
 
     @Test fun responseArrivingDuringPauseIsSavedWithoutInsertion() = withEditor { scenario ->

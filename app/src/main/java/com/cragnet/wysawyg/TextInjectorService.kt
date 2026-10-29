@@ -14,6 +14,7 @@ import android.view.accessibility.AccessibilityWindowInfo
 import android.view.inputmethod.EditorInfo
 import androidx.annotation.RequiresApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /** Observes the visible editor and inserts directly, without touching the clipboard. */
@@ -25,12 +26,13 @@ class TextInjectorService : AccessibilityService() {
         val selectionEnd: Int,
         val generation: Long,
         val reportedText: String = text,
-        val emptyInputEpoch: Long? = null
+        val emptyInputEpoch: Long? = null,
+        val requiresKeyboard: Boolean = true
     ) {
         val dictationContext: DictationContext get() =
             DictationContext.around(node.packageName?.toString(), node.inputType, text, selectionStart, selectionEnd)
     }
-    enum class InsertResult { INSERTED, TARGET_CHANGED, UNSUPPORTED }
+    enum class InsertResult { INSERTED, TARGET_CHANGED, UNSUPPORTED, SENT_UNCONFIRMED }
 
     companion object {
         var instance: TextInjectorService? = null
@@ -42,7 +44,15 @@ class TextInjectorService : AccessibilityService() {
     private var keyboardVisible = false
     private var generation = 0L
     private var inputEpoch = 0L
-    private val refresh = Runnable { refreshEditor() }
+    private var selectionRevision = 0L
+    private var refreshScheduled = false
+    private val refresh = Runnable { refreshScheduled = false; refreshEditor() }
+
+    private fun scheduleRefresh() {
+        if (refreshScheduled) return
+        refreshScheduled = true
+        handler.postDelayed(refresh, 50)
+    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -57,18 +67,28 @@ class TextInjectorService : AccessibilityService() {
 
     @RequiresApi(33)
     override fun onCreateInputMethod(): InputMethod = object : InputMethod(this) {
-        override fun onStartInput(attribute: EditorInfo, restarting: Boolean) { inputEpoch++ }
+        override fun onStartInput(attribute: EditorInfo, restarting: Boolean) {
+            inputEpoch++
+            generation++
+            scheduleRefresh()
+        }
         override fun onFinishInput() {
             // Observe the existing keyboard's editor without changing composing text.
             inputEpoch++
+            generation++
+            scheduleRefresh()
+        }
+        override fun onUpdateSelection(oldSelStart: Int, oldSelEnd: Int, newSelStart: Int, newSelEnd: Int,
+            candidatesStart: Int, candidatesEnd: Int) {
+            selectionRevision++
+            scheduleRefresh()
         }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (!PrivacyConsent.hasAccessibility(this)) return
         // Window events include the keyboard being dismissed without losing editor focus.
-        handler.removeCallbacks(refresh)
-        handler.postDelayed(refresh, 50)
+        scheduleRefresh()
     }
 
     fun refreshEditor() {
@@ -89,12 +109,16 @@ class TextInjectorService : AccessibilityService() {
             val keyboardBounds = Rect().also { keyboard?.getBoundsInScreen(it) }
             val application = visibleWindows.firstOrNull {
                 it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isFocused
+            } ?: visibleWindows.firstOrNull {
+                it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.isActive &&
+                    visibleWindows.none { other -> other.isFocused && other.type != AccessibilityWindowInfo.TYPE_INPUT_METHOD }
             }
             val candidate = findFocusedEditor(application?.root)
             if (candidate != editor || keyboardVisible != (keyboard != null)) generation++
             editor = candidate
             keyboardVisible = keyboard != null
-            OverlayService.updateEditor(candidate != null && keyboardVisible, keyboardBounds)
+            val inputAvailable = Build.VERSION.SDK_INT >= 33 && currentInputRequest() != null
+            OverlayService.updateEditor((candidate != null || inputAvailable) && keyboardVisible, keyboardBounds)
         } catch (e: Exception) {
             editor = null
             keyboardVisible = false
@@ -107,7 +131,8 @@ class TextInjectorService : AccessibilityService() {
     private fun findFocusedEditor(root: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
         if (root == null) return null
         fun usable(node: AccessibilityNodeInfo): Boolean =
-            node.isEditable && node.isFocused && node.isVisibleToUser && !node.isPassword
+            node.isEditable && node.isFocused && node.isVisibleToUser && !node.isPassword &&
+                (node.inputType == 0 || EditorInputPolicy.allowsText(node.inputType))
         root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.takeIf(::usable)?.let { return it }
 
         // Some virtual editor providers return the surrounding container for input
@@ -124,10 +149,11 @@ class TextInjectorService : AccessibilityService() {
         return null
     }
 
-    fun captureTarget(): Target? {
+    fun captureTarget(requireKeyboard: Boolean = true): Target? {
         refreshEditor()
-        val node = editor?.takeIf { keyboardVisible && it.refresh() } ?: return null
-        return Target(node, editorText(node), node.textSelectionStart, node.textSelectionEnd, generation)
+        val node = editor?.takeIf { (!requireKeyboard || keyboardVisible) && it.refresh() } ?: return null
+        return Target(node, editorText(node), node.textSelectionStart, node.textSelectionEnd, generation,
+            requiresKeyboard = requireKeyboard)
     }
 
     private fun editorText(node: AccessibilityNodeInfo): String {
@@ -137,8 +163,8 @@ class TextInjectorService : AccessibilityService() {
     }
 
     /** Confirms an empty input buffer when an app exposes an unmarked placeholder. */
-    suspend fun captureTargetForDictation(): Target? {
-        val target = withContext(Dispatchers.Main.immediate) { captureTarget() } ?: return null
+    suspend fun captureTargetForDictation(requireKeyboard: Boolean = true): Target? {
+        val target = withContext(Dispatchers.Main.immediate) { captureTarget(requireKeyboard) } ?: return null
         val input = readInputState(target.node)
         return withContext(Dispatchers.Main.immediate) {
             if (currentTarget(target) == null) return@withContext null
@@ -177,12 +203,15 @@ class TextInjectorService : AccessibilityService() {
 
     suspend fun insertForDictation(target: Target, text: String): InsertResult {
         val epoch = target.emptyInputEpoch
-            ?: return withContext(Dispatchers.Main.immediate) { insert(target, text) }
+        if (epoch == null) {
+            val result = withContext(Dispatchers.Main.immediate) { insert(target, text) }
+            return if (result == InsertResult.INSERTED) confirmNodeInsertion(target, text) else result
+        }
         if (!withContext(Dispatchers.Main.immediate) { inputEpoch == epoch && currentTarget(target) != null }) {
             return InsertResult.TARGET_CHANGED
         }
         val input = readInputState(target.node)
-        return withContext(Dispatchers.Main.immediate) {
+        val result = withContext(Dispatchers.Main.immediate) {
             val current = currentTarget(target)
             if (current == null || inputEpoch != epoch || input?.epoch != epoch || !input.empty) {
                 InsertResult.TARGET_CHANGED
@@ -190,12 +219,13 @@ class TextInjectorService : AccessibilityService() {
                 writeText(current, target, text)
             }
         }
+        return if (result == InsertResult.INSERTED) confirmNodeInsertion(target, text) else result
     }
 
     private fun currentTarget(target: Target): AccessibilityNodeInfo? {
         refreshEditor()
         val current = editor ?: return null
-        if (!keyboardVisible || target.generation != generation || current != target.node ||
+        if ((target.requiresKeyboard && !keyboardVisible) || target.generation != generation || current != target.node ||
             !current.refresh() || editorText(current) != target.reportedText ||
             current.textSelectionStart != target.selectionStart || current.textSelectionEnd != target.selectionEnd) return null
         return current
@@ -220,6 +250,91 @@ class TextInjectorService : AccessibilityService() {
             putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, edit.cursor)
         })
         return InsertResult.INSERTED
+    }
+
+    @RequiresApi(33)
+    private data class InputRequest(val connection: InputMethod.AccessibilityInputConnection,
+        val epoch: Long, val revision: Long, val packageName: String, val fieldId: Int)
+
+    @RequiresApi(33)
+    private fun currentInputRequest(): InputRequest? {
+        if (!PrivacyConsent.hasAccessibility(this)) return null
+        val method = inputMethod ?: return null
+        val info = method.currentInputEditorInfo ?: return null
+        if (!method.currentInputStarted || !EditorInputPolicy.allowsText(info.inputType)) return null
+        val foreground = windows.firstOrNull { it.isFocused && it.type != AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+            ?: windows.firstOrNull { it.isActive && it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+        if (foreground?.type != AccessibilityWindowInfo.TYPE_APPLICATION ||
+            foreground.root?.packageName?.toString() != info.packageName) return null
+        if (foreground.root?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.isPassword == true) return null
+        val connection = method.currentInputConnection ?: return null
+        return InputRequest(connection, inputEpoch, selectionRevision, info.packageName, info.fieldId)
+    }
+
+    /** Explicit insertion uses the current Android input, not the recording's old editor token. */
+    suspend fun insertHere(text: String): InsertResult {
+        if (Build.VERSION.SDK_INT >= 33) {
+            val blocked = withContext(Dispatchers.Main.immediate) {
+                inputMethod?.let { it.currentInputStarted &&
+                    it.currentInputEditorInfo?.let { info -> !EditorInputPolicy.allowsText(info.inputType) } == true } == true
+            }
+            if (blocked) return InsertResult.TARGET_CHANGED
+            for (attempt in 0..2) {
+                val request = withContext(Dispatchers.Main.immediate) { currentInputRequest() }
+                if (request != null) {
+                    val result = insertIntoCurrentInput(request, text)
+                    if (result != InsertResult.UNSUPPORTED) return result
+                    break
+                }
+                if (attempt < 2) delay(75)
+            }
+        }
+        val target = captureTargetForDictation(requireKeyboard = false) ?: run {
+            WysawygLogger.i("Insert here: no eligible current input or focused editor")
+            return InsertResult.TARGET_CHANGED
+        }
+        return insertForDictation(target, text)
+    }
+
+    private suspend fun confirmNodeInsertion(target: Target, text: String): InsertResult {
+        val expected = DictationText.insert(target.text, target.selectionStart, target.selectionEnd, text).text
+        repeat(3) {
+            if (withContext(Dispatchers.Main.immediate) { target.node.refresh() && editorText(target.node) == expected }) {
+                return InsertResult.INSERTED
+            }
+            delay(75)
+        }
+        return InsertResult.SENT_UNCONFIRMED
+    }
+
+    @RequiresApi(33)
+    private suspend fun insertIntoCurrentInput(request: InputRequest, text: String): InsertResult {
+        val before = withContext(Dispatchers.IO) { request.connection.getSurroundingText(1, 1, 0) }
+            ?: return InsertResult.UNSUPPORTED
+        val edit = DirectTextInsertion.plan(before.text.toString(), before.selectionStart, before.selectionEnd, before.offset, text)
+            ?: return InsertResult.UNSUPPORTED
+        val sent = withContext(Dispatchers.Main.immediate) {
+            val current = currentInputRequest()
+            if (current == null || current.epoch != request.epoch || current.revision != request.revision ||
+                current.packageName != request.packageName || current.fieldId != request.fieldId) false
+            else {
+                request.connection.commitText(edit.text, 1, null)
+                true
+            }
+        }
+        if (!sent) return InsertResult.TARGET_CHANGED
+        // Never try another write path after dispatch: a missing acknowledgement may still mean it landed.
+        if (edit.text.length > 8192) return InsertResult.SENT_UNCONFIRMED
+        repeat(3) {
+            val after = withContext(Dispatchers.IO) {
+                runCatching { request.connection.getSurroundingText(edit.text.length, 0, 0) }.getOrNull()
+            }
+            if (after != null && edit.confirmed(after.text.toString(), after.selectionStart, after.selectionEnd, after.offset)) {
+                return InsertResult.INSERTED
+            }
+            delay(75)
+        }
+        return InsertResult.SENT_UNCONFIRMED
     }
 
     override fun onInterrupt() {

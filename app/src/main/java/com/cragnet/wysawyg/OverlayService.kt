@@ -66,6 +66,7 @@ class OverlayService : Service() {
     private var recoveryAction = false
     private var recoveryVisible = false
     private var recoveryCollapsed = false
+    private var unconfirmedRecoveryId: String? = null
     private var startedAt = 0L
     private var operation: Job? = null
     private var meter: Job? = null
@@ -135,6 +136,8 @@ class OverlayService : Service() {
         fun updateEditor(visible: Boolean, keyboard: Rect) {
             instance?.onEditorChanged(visible, keyboard)
         }
+
+        internal fun refreshSavedText() { instance?.refreshSurface() }
     }
 
     override fun onCreate() {
@@ -225,8 +228,10 @@ class OverlayService : Service() {
 
     private fun refreshSurface() {
         if (destroyed) return
+        val saved = recoveries.snapshot()
+        val hasSavedText = saved.items.isNotEmpty() || saved.unreadable || saved.writeFailed
         if (Settings.canDrawOverlays(this) && (session.keepsIndicator ||
-            (editorVisible && isEnabled(this) && PrivacyConsent.hasAccessibility(this)))) showBubble()
+            ((editorVisible || hasSavedText) && isEnabled(this) && PrivacyConsent.hasAccessibility(this)))) showBubble()
         else hideBubble()
     }
 
@@ -316,6 +321,7 @@ class OverlayService : Service() {
 
     private fun layoutPanel(update: Boolean = true) {
         val panel = bubble ?: return
+        val oldBounds = listOf(parameters.x, parameters.y, parameters.width, parameters.height)
         val screen = resources.displayMetrics
         val statusBarId = resources.getIdentifier("status_bar_height", "dimen", "android")
         val statusBar = if (statusBarId != 0) resources.getDimensionPixelSize(statusBarId) else dp(24)
@@ -338,7 +344,9 @@ class OverlayService : Service() {
         }
         parameters.x = parameters.x.coerceIn(0, (screen.widthPixels - parameters.width).coerceAtLeast(0))
         parameters.y = parameters.y.coerceIn(0, (available - parameters.height).coerceAtLeast(0))
-        if (update) windowManager.updateViewLayout(panel, parameters)
+        if (update && oldBounds != listOf(parameters.x, parameters.y, parameters.width, parameters.height)) {
+            windowManager.updateViewLayout(panel, parameters)
+        }
     }
 
     private fun hideBubble() {
@@ -392,15 +400,16 @@ class OverlayService : Service() {
         }
         view<Button>(R.id.collapseRecovery)?.isEnabled = !recoveryAction
         view<ProgressBar>(R.id.dictationProgress)?.visibility = if (state == RecordingPhase.STARTING || state == RecordingPhase.TRANSCRIBING) View.VISIBLE else View.GONE
-        view<TextView>(R.id.recoveryTitle)?.text = if (item == null) "Recovery storage needs attention" else "Recovered ${recoveryIndex + 1} of ${snapshot.items.size}"
+        view<TextView>(R.id.recoveryTitle)?.text = if (item == null) "Recovery storage needs attention" else "Saved text ${recoveryIndex + 1} of ${snapshot.items.size}"
         view<TextView>(R.id.recoveryText)?.let { if (it.text.toString() != item?.text.orEmpty()) it.text = item?.text.orEmpty() }
         view<TextView>(R.id.recoveryStatus)?.text = when {
+            item != null && item.id == unconfirmedRecoveryId -> "Text was sent to the field. Check it before inserting again; your saved copy is kept."
             item?.id in snapshot.unsavedIds -> "Not saved. Kept in memory only; Copy before closing the app. New recording paused."
             snapshot.unsavedIds.isNotEmpty() -> "A transcript is not saved. Use the arrows to find it and Copy before closing. Recording paused."
             snapshot.unreadable -> "Saved recovery file is unreadable. Discard unreadable data to resume."
             snapshot.writeFailed -> "Could not update storage. An inserted transcript may reappear. Check it before inserting again."
             snapshot.items.size >= RecoveryStore.CAPACITY -> "5 saved; recording paused until you insert or discard one. Expires after 24 hours."
-            else -> "Saved for 24 hours. Select a text box, then Insert here. Copy keeps this transcript."
+            else -> "Saved privately for 24 hours, even with the keyboard closed. Tap a text box, then Insert here. Your clipboard stays unchanged."
         }
         view<View>(R.id.recoveryScroll)?.visibility = if (item != null) View.VISIBLE else View.GONE
         view<View>(R.id.recoveryActions)?.visibility = if (item != null) View.VISIBLE else View.GONE
@@ -410,7 +419,10 @@ class OverlayService : Service() {
             text = if (item == null && snapshot.unreadable) "Discard unreadable data" else "Discard"
             isEnabled = !recoveryAction && (item != null || snapshot.unreadable)
         }
-        view<Button>(R.id.insertRecovery)?.isEnabled = !recoveryAction
+        view<Button>(R.id.insertRecovery)?.apply {
+            isEnabled = !recoveryAction
+            text = if (item != null && item.id == unconfirmedRecoveryId) "Insert again" else "Insert here"
+        }
         view<Button>(R.id.copyRecovery)?.isEnabled = !recoveryAction
         view<Button>(R.id.retryRecoverySave)?.apply {
             visibility = if (snapshot.writeFailed && !snapshot.unreadable) View.VISIBLE else View.GONE
@@ -444,8 +456,8 @@ class OverlayService : Service() {
                         TextInjectorService.instance?.insertForDictation(target, text) == TextInjectorService.InsertResult.INSERTED
                     }
                 }
-                check(selected != null && selected.isValid()) { "Tap a non-password text box before dictating." }
-                destination = selected
+                if (requested != null) check(requested.isValid()) { "Tap a non-password text box before dictating." }
+                destination = selected?.takeIf { it.isValid() }
                 pendingAudio = audioStore.create()
                 startedAt = SystemClock.elapsedRealtime()
                 // Promote before acquiring AudioRecord; applies equally to the optional IME.
@@ -608,7 +620,7 @@ class OverlayService : Service() {
         } else {
             recoveryCollapsed = false
             recoveryIndex = recoveries.snapshot().items.indexOfFirst { it.id == item?.id }.coerceAtLeast(0)
-            toast("Transcript kept. Select a text box and tap Insert here, or Copy.")
+            toast("Transcript kept in Speakeasy. Tap a text box, then Insert here.")
         }
         destination = null
         setSession(RecordingSession())
@@ -635,42 +647,45 @@ class OverlayService : Service() {
         }
     }
 
-    private suspend fun completeTranscript(destination: TextInjectorService.Target, item: RecoveredTranscript) {
+    private suspend fun completeTranscript(item: RecoveredTranscript) {
         currentCoroutineContext().ensureActive()
         if (destroyed || !isEnabled(this)) return
-        val result = TextInjectorService.instance?.insertForDictation(destination, item.text)
+        val result = TextInjectorService.instance?.insertHere(item.text)
         if (result == TextInjectorService.InsertResult.INSERTED) {
+            unconfirmedRecoveryId = null
             if (!withContext(NonCancellable + Dispatchers.IO) { recoveries.remove(item.id) }) {
                 toast("Inserted, but recovery removal was not saved. Check before inserting again.")
             }
         } else {
             recoveryCollapsed = false
             recoveryIndex = recoveries.snapshot().items.indexOfFirst { it.id == item.id }.coerceAtLeast(0)
-            toast("Transcript kept. Select a text box and tap Insert here, or Copy.")
+            if (result == TextInjectorService.InsertResult.SENT_UNCONFIRMED) {
+                unconfirmedRecoveryId = item.id
+                toast("Text sent. Check the field before inserting again; your saved copy is kept.")
+            } else toast("Text is safe in Speakeasy. Tap inside a non-password text box, then Insert here.")
         }
-        if (!destroyed) renderState()
+        if (!destroyed) refreshSurface()
     }
 
     private fun insertRecovery() {
         if (recoveryAction || state != RecordingPhase.IDLE) return
         val item = selectedRecovery() ?: return
+        if (!recoveries.tryBeginInsertion(item.id)) { refreshSurface(); return }
         recoveryAction = true
         renderState()
         operation = scope.launch {
             try {
-                val destination = TextInjectorService.instance?.captureTargetForDictation()
-                currentCoroutineContext().ensureActive()
-                if (!editorVisible || destination == null) toast("Select a non-password text box with the keyboard open.")
-                else completeTranscript(destination, item)
+                completeTranscript(item)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 WysawygLogger.e("Recovery insertion failed", e)
-                toast("Could not insert here. Transcript retained; try Copy.")
+                toast("Insertion could not be confirmed. Check the field; your saved text is kept.")
             } finally {
+                recoveries.finishInsertion(item.id)
                 recoveryAction = false
                 operation = null
-                if (!destroyed) renderState()
+                if (!destroyed) refreshSurface()
             }
         }
     }
@@ -685,7 +700,7 @@ class OverlayService : Service() {
             } finally {
                 recoveryAction = false
                 operation = null
-                if (!destroyed) renderState()
+                if (!destroyed) refreshSurface()
             }
         }
     }

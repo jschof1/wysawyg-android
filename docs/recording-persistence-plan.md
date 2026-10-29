@@ -15,6 +15,30 @@ independently of the keyboard, editor, or current screen.
   provider.
 - A changed editor cannot receive a stale automatic insertion. Completed text
   remains available for deliberate insertion or copying.
+- Saved text stays available in the floating card when the keyboard closes. Insert
+  here uses the current input at the moment of the tap; it never writes to the
+  system clipboard. Copy remains an explicitly separate action.
+
+## Reopening an editor
+
+On Android 13 and later, explicit insertion uses the accessibility input
+connection after checking its current editor type, foreground app, input epoch
+and selection revision. It does not require the old accessibility node or an
+open keyboard. Spacing comes from the current cursor surroundings, and only the
+new text is committed. The focused-node path remains a compatibility fallback
+when a current input connection cannot read text, including older Android.
+
+The optional Speakeasy keyboard also offers Insert saved text without opening
+Home. Both controls share a per-transcript insertion guard. A successful command
+alone does not delete saved text: readback must confirm the full insertion. A
+truncated or unconfirmed write retains the copy and asks the user to check the
+field before trying again. There is no automatic second write after dispatch.
+
+The old focused-window lookup plus keyboard visibility check could reject an
+otherwise valid current input. Fixing only that lookup was considered, but would
+still depend on apps exposing editable accessibility nodes. The explicit input
+connection path removes that dependency while keeping automatic insertion tied
+to the original recording destination.
 
 ## Ownership and durability
 
