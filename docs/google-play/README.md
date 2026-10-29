@@ -109,9 +109,12 @@ and debug package remain `com.cragnet.wysawyg`.
    The public name can differ from the verified individual's legal name. Jack
    approved both registration agreements and the USD 25 fee on 29 October 2026.
    Both automated and owner-attempted checkout stalled. Signup reset, and the
-   embedded payments-profile selector now remains blank. A preregistration support
-   report is prepared at `https://play.google.com/console/u/0/help`, awaiting Jack's
-   approval of its exact text and screenshots; it has not been submitted. Verify
+   embedded payments-profile selector now remains blank. After Jack approved the
+   exact report and both screenshots, Google confirmed Ticket submitted through
+   `https://play.google.com/console/u/0/help` on 29 October 2026. Google says it will
+   reply by email within two working days, although some cases take longer. No
+   case reference appeared on the page. Check for a reply by 2 November 2026 and
+   resume registration through Google's supported recovery route. Verify
    the actual payment receipt and account registration before upload. Preserve
    the existing approval for the unchanged action; approval is not payment proof.
    Google also displays the verified legal name, country and developer email for

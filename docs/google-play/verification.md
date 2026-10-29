@@ -95,13 +95,20 @@ stalled widget. No browser protections or account data were changed.
 
 Google's legacy registration-support link redirected to signup. The Help Centre's
 general contact route reached the working preregistration form at
-`https://play.google.com/console/u/0/help`. A report and two screenshots are prepared
-for review; the report is not submitted and has no support case reference. Jack's
-approval of this exact external-message draft is pending under AGENTS.md.
+`https://play.google.com/console/u/0/help`. Jack approved the exact report and both
+screenshots in the current chat on 29 October 2026. The message matched the approved
+draft before submission; both `payments-profile-blank.png` and
+`registration-checkout-stalled.png` finished uploading. Google then displayed
+Ticket submitted and stated that it will reply by email within two working days,
+with some tickets requiring longer. The confirmation showed the intended account
+contact, but no case reference. The receipt screenshot and exact report are kept
+privately with the release evidence, outside the repository. No second report was
+submitted. Google's reply is the next registration-recovery gate; check for it by
+2 November 2026. Ticket acceptance does not establish a resolved registration.
 His approval of both agreements and the USD 25 fee remains valid for the unchanged
 action. No payment receipt, completed registration or app upload has been verified.
-Linking a payments profile
-does not establish that Google's identity verification is complete.
+Linking a payments profile does not establish that Google's identity verification
+is complete.
 Remaining actions are account registration and identity verification, first upload
 of the chosen public package ID, device acceptance and media capture,
 Console declarations, and the individual account's closed test and
