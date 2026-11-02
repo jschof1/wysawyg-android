@@ -222,6 +222,60 @@ class TextInjectorService : AccessibilityService() {
         return if (result == InsertResult.INSERTED) confirmNodeInsertion(target, text) else result
     }
 
+    /**
+     * The field a recording started in can still take its text. Keyboard visibility and editor
+     * events since the start do not matter; another field taking focus, or the field leaving the
+     * screen, means the person moved on.
+     */
+    fun originalFieldAvailable(target: Target): Boolean {
+        val node = target.node
+        if (!node.refresh() || !node.isEditable || node.isPassword || !node.isVisibleToUser) return false
+        refreshEditor()
+        if (editor == node) return true
+        // Any other field holding input focus, even an ineligible one such as a password, means the person moved.
+        val focus = windows.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+            .firstNotNullOfOrNull { it.root?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) }
+        return editor == null && (focus == null || focus == node)
+    }
+
+    /**
+     * Completion insertion into the original field. Its contents must be exactly as they were when
+     * recording started: a changed draft means typing, or another conversation reusing this field,
+     * and that text is saved instead of risking the wrong chat or a lost edit.
+     */
+    suspend fun insertIntoOriginalField(target: Target, text: String): InsertResult {
+        val ready = withContext(Dispatchers.Main.immediate) {
+            originalFieldAvailable(target) && editorText(target.node) == target.reportedText
+        }
+        if (!ready) return InsertResult.TARGET_CHANGED
+        if (Build.VERSION.SDK_INT >= 33) {
+            // A live input connection on that same field inserts at the real cursor, never replacing text.
+            val request = withContext(Dispatchers.Main.immediate) { if (editor == target.node) currentInputRequest() else null }
+            if (request != null) {
+                val result = insertIntoCurrentInput(request, text)
+                if (result != InsertResult.UNSUPPORTED) return result
+            }
+        }
+        // Rewriting the whole field can't tell an unmarked placeholder from the same words typed.
+        if (target.emptyInputEpoch != null) return InsertResult.TARGET_CHANGED
+        return withContext(Dispatchers.Main.immediate) {
+            val node = target.node
+            if (!originalFieldAvailable(target) || editorText(node) != target.reportedText) return@withContext null
+            val length = target.text.length
+            fun valid(position: Int) = position in 0..length
+            val live = node.textSelectionStart to node.textSelectionEnd
+            val (a, b) = when {
+                valid(live.first) && valid(live.second) -> live
+                valid(target.selectionStart) && valid(target.selectionEnd) -> target.selectionStart to target.selectionEnd
+                else -> length to length
+            }
+            val fresh = target.copy(selectionStart = minOf(a, b), selectionEnd = maxOf(a, b))
+            fresh to writeText(node, fresh, text)
+        }?.let { (fresh, result) ->
+            if (result == InsertResult.INSERTED) confirmNodeInsertion(fresh, text) else result
+        } ?: InsertResult.TARGET_CHANGED
+    }
+
     private fun currentTarget(target: Target): AccessibilityNodeInfo? {
         refreshEditor()
         val current = editor ?: return null

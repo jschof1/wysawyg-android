@@ -56,6 +56,9 @@ class RecoverySettingsTest {
                 assertTrue(blocked.delete())
                 assertTrue(blocked.mkdir())
                 retry.click()
+                // The dialog handles the tap on the main thread after click() returns.
+                val saved = SystemClock.uptimeMillis() + 5000
+                while (store.snapshot().unsavedIds.isNotEmpty() && SystemClock.uptimeMillis() < saved) SystemClock.sleep(100)
                 assertTrue(store.snapshot().unsavedIds.isEmpty())
                 assertEquals(item.text, RecoveryStore(file).snapshot().items.single().text)
                 assertFalse(OverlayService.isRunning())

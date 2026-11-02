@@ -102,7 +102,7 @@ class RecoveryStore(private val file: File, private val now: () -> Long = System
 
     /** Audio is disposable only after the entire transcript has been committed to durable storage. */
     fun stageRecording(text: String, audio: DurablePcmStore.Capture, audioStore: DurablePcmStore): RecoveredTranscript {
-        check(text.isNotBlank() || text.contains('\n')) { "No speech detected. Audio kept for retry or discard." }
+        if (text.isBlank() && !text.contains('\n')) throw NoSpeechException()
         val item = stage(text, audio.id)
         val saved = snapshot()
         check(item.id !in saved.unsavedIds && !saved.unreadable && !saved.writeFailed) {
@@ -182,3 +182,6 @@ class RecoveryStore(private val file: File, private val now: () -> Long = System
         }
     }
 }
+
+/** The transcript was empty; the caller decides whether the audio is worth keeping. */
+class NoSpeechException : IllegalStateException("No speech detected. Audio kept for retry or discard.")

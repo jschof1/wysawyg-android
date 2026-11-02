@@ -69,6 +69,12 @@ class WysawygKeyboardService : InputMethodService() {
             setOnClickListener { insertSavedText() }
         }
         addView(insertButton)
+        // Android 15+ draws the keyboard edge to edge; keep the controls above the navigation bar.
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(this) { view, insets ->
+            val bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
+            view.setPadding(16 + bars.left, 16, 16 + bars.right, 16 + bars.bottom)
+            insets
+        }
         render()
     }
 

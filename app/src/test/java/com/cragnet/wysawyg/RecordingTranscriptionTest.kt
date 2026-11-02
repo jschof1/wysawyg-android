@@ -33,6 +33,35 @@ class RecordingTranscriptionTest {
         } finally { directory.deleteRecursively() }
     }
 
+    @Test fun emptyTranscriptRaisesNoSpeechAndLeavesTheAudioForTheCallerToJudge() = runBlocking {
+        val directory = Files.createTempDirectory("no-speech").toFile()
+        try {
+            val store = DurablePcmStore(File(directory, "audio"))
+            val audio = store.create()
+            store.openWriter(audio).use { it.append(ByteArray(3200), 3200) }
+            val recovery = RecoveryStore(File(directory, "text"))
+            val admission = CaptureAdmission({ TranscriptionBackend { "  " } }) { true }
+            val client = TranscriptionClient(admission)
+            val failure = runCatching {
+                client.transcribeRecording(audio, requireNotNull(admission.acquire())) {
+                    recovery.stageRecording(it, audio, store)
+                }
+            }.exceptionOrNull()
+            assertTrue(failure is NoSpeechException)
+            assertEquals(audio.id, store.pending()?.id)
+            assertTrue(PcmLevel.loudestWindow(audio.pcm) < PcmLevel.SILENCE)
+            assertTrue(recovery.snapshot().items.isEmpty())
+
+            // Retry must listen again rather than reuse the cached empty segment.
+            val retry = CaptureAdmission({ TranscriptionBackend { "hello" } }) { true }
+            val text = TranscriptionClient(retry).transcribeRecording(audio, requireNotNull(retry.acquire())) {
+                recovery.stageRecording(it, audio, store)
+            }
+            assertEquals("hello", text)
+            assertNull(store.pending())
+        } finally { directory.deleteRecursively() }
+    }
+
     @Test fun failedSegmentKeepsAudioAndRetryReusesDurableCompletedSegments() = runBlocking {
         val directory = Files.createTempDirectory("segments").toFile()
         try {

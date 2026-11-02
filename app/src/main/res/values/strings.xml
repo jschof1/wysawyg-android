@@ -37,7 +37,9 @@
     <string name="retry_recovery_save">Retry saving</string>
     <string name="recovered_transcripts">Recovered transcripts</string>
     <string name="later_recovery">Later</string>
-    <string name="saved_text_count">Saved text (%1$d)</string>
+    <string name="retry_audio">Retry</string>
+    <string name="confirm_discard_audio">Tap to discard</string>
+    <string name="recording_kept">Recording kept</string>
     <string name="works_offline">Works offline · English</string>
     <string name="recording_limit">Recording continues until Stop. Stop &amp; keep saves audio without transcribing.</string>
     <string name="cloud_upload_notice">Recordings are uploaded to your configured provider when cloud transcription is selected. No automatic fallback.</string>

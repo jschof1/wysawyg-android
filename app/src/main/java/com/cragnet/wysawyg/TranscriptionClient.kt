@@ -88,7 +88,8 @@ class TranscriptionClient(
     ): String = perform(reservation, { backend ->
         val text = StringBuilder()
         for (index in 0 until audio.segments) {
-            val segment = audio.savedSegment(index) ?: backend.transcribe(audio.wav(index)).also {
+            // A blank cached segment is never trusted, so Retry really listens again.
+            val segment = audio.savedSegment(index)?.takeIf { it.isNotBlank() } ?: backend.transcribe(audio.wav(index)).also {
                 audio.saveSegment(index, it)
             }
             if (text.isNotEmpty() && segment.isNotEmpty()) text.append(' ')

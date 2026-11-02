@@ -166,6 +166,20 @@ class RecoveryControlsTest {
         }
     }
 
+    /** Nothing pops up by itself; holding the mic is how saved text is opened. */
+    private fun openSavedText() {
+        assertFalse("Saved text must not pop up by itself", device.hasObject(res("recoveryPanel")))
+        requireNotNull(device.wait(Until.findObject(res("dictationButton")), 5000)).longClick()
+        assertTrue(device.wait(Until.hasObject(res("recoveryPanel")), 5000))
+    }
+
+    /** Kept audio waits behind the mic; tapping it opens the options. */
+    private fun openKeptAudio() {
+        assertFalse("Kept audio must not pop up by itself", device.hasObject(res("retryAudio")))
+        requireNotNull(device.wait(Until.findObject(res("dictationButton")), 5000)).click()
+        assertTrue(device.wait(Until.hasObject(res("retryAudio")), 5000))
+    }
+
     private fun beginRecording() {
         requireNotNull(device.wait(Until.findObject(start), 8000)).click()
         assertTrue("The real recording controls must appear", device.wait(Until.hasObject(finish), 8000))
@@ -205,7 +219,10 @@ class RecoveryControlsTest {
         screenshot("recording")
         cancel.click()
         await("Stop and keep must expose recovery") { RecordingSessions.state.value.phase == RecordingPhase.INTERRUPTED }
-        assertTrue(device.hasObject(res("retryAudio")))
+        SystemClock.sleep(300)
+        openKeptAudio()
+        requireNotNull(device.findObject(res("collapseAudio"))).click()
+        assertTrue("Later must close the card", device.wait(Until.gone(res("retryAudio")), 3000))
         assertTrue(requireNotNull(RecordingSessions.store(context).pending()).bytes > 0)
         assertFalse(microphoneActive())
         SystemClock.sleep(400)
@@ -221,7 +238,12 @@ class RecoveryControlsTest {
         requireNotNull(device.findObject(res("dictationTestSecondEditor"))).click()
         scenario.onActivity { it.secondEditor.setText("Fresh destination"); it.secondEditor.setSelection(it.secondEditor.length()) }
         server.release.countDown()
-        assertTrue("Failed original insertion must expose full recovery", device.wait(Until.hasObject(res("recoveryText").text(words)), 10000))
+        await("A different focused field must not receive the text; it is saved") {
+            Recoveries.get(context).snapshot().items.any { it.text == words }
+        }
+        SystemClock.sleep(300)
+        openSavedText()
+        assertTrue(device.wait(Until.hasObject(res("recoveryText").text(words)), 3000))
         scenario.onActivity {
             assertEquals("", it.editor.text.toString())
             assertEquals("Fresh destination", it.secondEditor.text.toString())
@@ -234,7 +256,7 @@ class RecoveryControlsTest {
         assertEquals(words, Recoveries.get(context).snapshot().items.single().text)
         assertTrue(device.hasObject(start))
         screenshot("recovery-collapsed")
-        requireNotNull(device.findObject(res("showRecovery"))).click()
+        requireNotNull(device.findObject(res("dictationButton"))).longClick()
         assertTrue(device.wait(Until.hasObject(res("recoveryText").text(words)), 3000))
         requireNotNull(device.findObject(res("copyRecovery"))).click()
         assertEquals(words, clipboardText())
@@ -258,9 +280,8 @@ class RecoveryControlsTest {
         server.release.countDown()
         await("Successful response must be durably recovered") { Recoveries.get(context).snapshot().items.any { it.text == words } }
         SystemClock.sleep(300)
-        assertTrue("Private saved text remains available independently of the destination", device.wait(Until.hasObject(res("recoveryPanel")), 5000))
-        requireNotNull(device.findObject(res("insertRecovery"))).click()
-        device.waitForIdle()
+        assertFalse("A password field shows no dictation UI at all", device.hasObject(res("recoveryPanel")))
+        assertFalse(device.hasObject(start))
         assertEquals(words, Recoveries.get(context).snapshot().items.single().text)
         scenario.onActivity { assertTrue(it.editor.text.isEmpty()); assertTrue(it.secondEditor.text.isEmpty()) }
         val file = File(context.noBackupFilesDir, "recovered-transcripts.bin")
@@ -274,6 +295,8 @@ class RecoveryControlsTest {
         prefs.edit().putBoolean(MainActivity.PREF_OVERLAY_ENABLED, true).commit()
         scenario.onActivity { ContextCompat.startForegroundService(it, Intent(it, OverlayService::class.java)) }
         requireNotNull(device.findObject(res("dictationTestEditor"))).click()
+        SystemClock.sleep(500)
+        openSavedText()
         assertTrue(device.wait(Until.hasObject(res("recoveryText").text(words)), 8000))
         scenario.onActivity { assertTrue(it.editor.text.isEmpty()); assertTrue(it.secondEditor.text.isEmpty()) }
         if (retainRecoveryForRestart) return@withEditor
@@ -290,14 +313,20 @@ class RecoveryControlsTest {
             Recoveries.get(it).stage(words)
             TextInjectorService.instance?.refreshEditor()
         }
+        SystemClock.sleep(500)
+        openSavedText()
         assertTrue(device.wait(Until.hasObject(res("recoveryText").text(words)), 5000))
         device.pressBack()
-        assertTrue("Saved text must remain reachable with the keyboard closed", device.wait(Until.hasObject(res("insertRecovery")), 5000))
+        assertTrue("With the keyboard closed nothing floats on screen", device.wait(Until.gone(res("recoveryPanel")), 5000))
+        assertFalse(device.hasObject(res("dictationButton")))
         scenario.onActivity {
             it.editor.requestFocus()
             it.getSystemService(InputMethodManager::class.java).showSoftInput(it.editor, InputMethodManager.SHOW_IMPLICIT)
         }
         device.waitForIdle()
+        assertTrue(device.wait(Until.hasObject(start), 5000))
+        assertFalse("Reopening the keyboard starts tidy, with the card folded away", device.hasObject(res("recoveryPanel")))
+        openSavedText()
         requireNotNull(device.findObject(res("insertRecovery"))).click()
         await("Confirmed insertion removes only this saved item") { Recoveries.get(context).snapshot().items.isEmpty() }
         scenario.onActivity { assertEquals("hello $words world", it.editor.text.toString()) }
@@ -320,6 +349,7 @@ class RecoveryControlsTest {
         }
         device.waitForIdle()
         instrumentation.runOnMainSync { assertNull(TextInjectorService.instance?.captureTarget()) }
+        openSavedText()
         requireNotNull(device.wait(Until.findObject(res("insertRecovery")), 5000)).click()
         await("Current input can insert without a cached accessibility editor") { Recoveries.get(context).snapshot().items.isEmpty() }
         scenario.onActivity { assertEquals(words, it.editor.text.toString()) }
@@ -332,6 +362,8 @@ class RecoveryControlsTest {
             Recoveries.get(it).stage(words)
             TextInjectorService.instance?.refreshEditor()
         }
+        SystemClock.sleep(500)
+        openSavedText()
         requireNotNull(device.wait(Until.findObject(res("insertRecovery")), 5000)).click()
         assertTrue(device.wait(Until.hasObject(res("insertRecovery").text("Insert again")), 5000))
         scenario.onActivity { assertEquals(words.take(4), it.editor.text.toString()) }
@@ -343,6 +375,9 @@ class RecoveryControlsTest {
         beginRecording()
         stopWithHeldResponse()
         server.release.countDown()
+        await("An unconfirmed insertion keeps a saved copy") { Recoveries.get(context).snapshot().items.any { it.text == words } }
+        SystemClock.sleep(300)
+        openSavedText()
         assertTrue(device.wait(Until.hasObject(res("insertRecovery").text("Insert again")), 10000))
         scenario.onActivity { assertEquals(words.take(4), it.editor.text.toString()) }
         assertEquals(words, Recoveries.get(context).snapshot().items.single().text)
@@ -406,6 +441,59 @@ class RecoveryControlsTest {
         assertNull(RecordingSessions.store(context).pending())
     }
 
+    @Test fun closingTheKeyboardWhileRecordingStillInsertsIntoTheSameField() = withEditor { scenario ->
+        scenario.onActivity { it.editor.setText("Dear Sam,"); it.editor.setSelection(it.editor.length()) }
+        beginRecording()
+        device.pressBack()
+        await("Hidden keyboard must leave Stop visible") { device.hasObject(finish) }
+        stopWithHeldResponse()
+        server.release.countDown()
+        await("The original field must receive the text even with the keyboard closed") {
+            var text = ""
+            scenario.onActivity { text = it.editor.text.toString() }
+            text == "Dear Sam, $words"
+        }
+        assertTrue("Inserted text leaves nothing saved", Recoveries.get(context).snapshot().items.isEmpty())
+        assertFalse("Nothing pops up afterwards", device.hasObject(res("recoveryPanel")))
+    }
+
+    @Test fun aReusedFieldShowingADifferentDraftNeverReceivesTheText() = withEditor { scenario ->
+        scenario.onActivity { it.editor.setText("Draft for Sam"); it.editor.setSelection(it.editor.length()) }
+        beginRecording()
+        // The app swaps conversations but keeps the same composer view.
+        scenario.onActivity { it.editor.setText("Draft for Alex"); it.editor.setSelection(it.editor.length()) }
+        stopWithHeldResponse()
+        server.release.countDown()
+        await("A different draft in the same field must keep the text saved") {
+            Recoveries.get(context).snapshot().items.any { it.text == words }
+        }
+        scenario.onActivity { assertEquals("Draft for Alex", it.editor.text.toString()) }
+        assertFalse("Saving quietly must not pop up a card", device.hasObject(res("recoveryPanel")))
+    }
+
+    @Test fun reopeningTheKeyboardWhileRecordingStillInsertsAtTheCursor() = withEditor { scenario ->
+        scenario.onActivity { it.editor.setText("start end"); it.editor.setSelection(5) }
+        beginRecording()
+        device.pressBack()
+        await("Hidden keyboard must leave Stop visible") { device.hasObject(finish) }
+        requireNotNull(device.findObject(res("dictationTestEditor"))).click()
+        device.waitForIdle()
+        scenario.onActivity { it.editor.setSelection(5) }
+        stopWithHeldResponse()
+        server.release.countDown()
+        var text = ""
+        val deadline = SystemClock.uptimeMillis() + 10000
+        // Mid-sentence dictation drops its closing full stop.
+        val expected = "start ${words.removeSuffix(".")} end"
+        while (text != expected && SystemClock.uptimeMillis() < deadline) {
+            scenario.onActivity { text = it.editor.text.toString() }
+            SystemClock.sleep(100)
+        }
+        assertEquals("Reopening the keyboard must not stop insertion (saved: ${Recoveries.get(context).snapshot().items.size})",
+            expected, text)
+        assertTrue(Recoveries.get(context).snapshot().items.isEmpty())
+    }
+
     @Test fun navigatingToAnotherScreenAndReturningKeepsSameSession() = withEditor { scenario ->
         beginRecording()
         val original = RecordingSessions.state.value
@@ -420,10 +508,12 @@ class RecoveryControlsTest {
         assertEquals(original.id, RecordingSessions.state.value.id)
         stopWithHeldResponse()
         server.release.countDown()
-        await("Returning must recover text rather than reuse an old editor token") {
-            Recoveries.get(context).snapshot().items.any { it.text == words }
+        await("Returning to the same field must insert there") {
+            var text = ""
+            scenario.onActivity { text = it.editor.text.toString() }
+            text == words
         }
-        scenario.onActivity { assertTrue(it.editor.text.isEmpty()) }
+        assertTrue("Inserted text leaves nothing saved", Recoveries.get(context).snapshot().items.isEmpty())
     }
 
     @Test fun serviceInterruptionKeepsPcmAndDoesNotRestartMicOrUpload() = withEditor { scenario ->
@@ -439,7 +529,8 @@ class RecoveryControlsTest {
         await("Restart must expose interrupted state") { RecordingSessions.state.value.phase == RecordingPhase.INTERRUPTED }
         assertFalse(microphoneActive())
         assertEquals(0, server.requests.get())
-        assertTrue(device.wait(Until.hasObject(res("retryAudio")), 5000))
+        SystemClock.sleep(500)
+        openKeptAudio()
     }
 
     @Test fun optionalImeUsesSameForegroundOwnerAndSurvivesImeDestruction() {

@@ -65,7 +65,11 @@ class OverlayService : Service() {
     private var recoveryIndex = 0
     private var recoveryAction = false
     private var recoveryVisible = false
-    private var recoveryCollapsed = false
+    /** Saved text waits as a chip; the card opens on tap or right after an insertion fails. */
+    private var recoveryCollapsed = true
+    /** Kept audio shows as a chip first; the full card only opens on request. */
+    private var audioCollapsed = true
+    private var discardArmedUntil = 0L
     private var unconfirmedRecoveryId: String? = null
     private var startedAt = 0L
     private var operation: Job? = null
@@ -220,6 +224,12 @@ class OverlayService : Service() {
 
     private fun onEditorChanged(visible: Boolean, keyboard: Rect) {
         if (destroyed) return
+        if (editorVisible && !visible) {
+            // Leaving a text box tidies up, so the next app starts with just the bubble.
+            recoveryCollapsed = true
+            audioCollapsed = true
+            discardArmedUntil = 0L
+        }
         editorVisible = visible
         keyboardBounds = Rect(keyboard)
         session = session.editorChanged()
@@ -228,14 +238,17 @@ class OverlayService : Service() {
 
     private fun refreshSurface() {
         if (destroyed) return
-        val saved = recoveries.snapshot()
-        val hasSavedText = saved.items.isNotEmpty() || saved.unreadable || saved.writeFailed
-        if (Settings.canDrawOverlays(this) && (session.keepsIndicator ||
-            ((editorVisible || hasSavedText) && isEnabled(this) && PrivacyConsent.hasAccessibility(this)))) showBubble()
+        // Only live recording follows you across screens; everything else waits for a text box.
+        if (Settings.canDrawOverlays(this) && (session.showsWithoutEditor ||
+            (editorVisible && isEnabled(this) && PrivacyConsent.hasAccessibility(this)))) showBubble()
         else hideBubble()
     }
 
     private fun setSession(value: RecordingSession) {
+        if (value.phase == RecordingPhase.INTERRUPTED && session.phase != RecordingPhase.INTERRUPTED) {
+            audioCollapsed = true
+            discardArmedUntil = 0L
+        }
         session = value
         RecordingSessions.update(value)
         showForeground(state == RecordingPhase.CAPTURING || audioRecorder.recording)
@@ -261,28 +274,47 @@ class OverlayService : Service() {
                 setOnClickListener {
                     it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     when {
+                        // When saved text is what blocks recording, the tap shows it instead of doing nothing.
+                        state == RecordingPhase.IDLE && !recoveries.snapshot().canCapture -> { recoveryCollapsed = false; renderState() }
                         state == RecordingPhase.IDLE -> startRecording()
+                        state == RecordingPhase.INTERRUPTED -> { audioCollapsed = false; renderState() }
                         state == RecordingPhase.CAPTURING && indicator == RecordingIndicator.MINIMAL -> stopAndTranscribe()
                     }
                 }
                 // Holding Stop keeps audio for later, without sending it for transcription.
+                // Holding the idle bubble opens saved text, so nothing else needs to sit on screen.
                 setOnLongClickListener {
-                    if (state == RecordingPhase.CAPTURING && indicator == RecordingIndicator.MINIMAL) {
-                        it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                        stopAndKeep()
-                        true
-                    } else false
+                    when {
+                        state == RecordingPhase.CAPTURING && indicator == RecordingIndicator.MINIMAL -> {
+                            it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                            stopAndKeep()
+                            true
+                        }
+                        state == RecordingPhase.IDLE && hasSavedText() -> {
+                            it.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                            recoveryCollapsed = false
+                            renderState()
+                            true
+                        }
+                        else -> false
+                    }
                 }
                 makeDraggable(this) {
                     (state == RecordingPhase.IDLE || state == RecordingPhase.CAPTURING && indicator == RecordingIndicator.MINIMAL) && !recoveryVisible
                 }
             }
             view<Button>(R.id.retryAudio)?.setOnClickListener { retryAudio() }
-            view<Button>(R.id.manageAudio)?.setOnClickListener {
-                startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            view<Button>(R.id.discardAudio)?.setOnClickListener {
+                // Discard is permanent, so it takes a second tap within a few seconds.
+                val now = SystemClock.elapsedRealtime()
+                if (now < discardArmedUntil) discardAudio() else {
+                    discardArmedUntil = now + 3000
+                    renderState()
+                    scope.launch { delay(3000); if (!destroyed) renderState() }
+                }
             }
+            view<Button>(R.id.collapseAudio)?.setOnClickListener { audioCollapsed = true; discardArmedUntil = 0L; renderState() }
             view<Button>(R.id.collapseRecovery)?.setOnClickListener { recoveryCollapsed = true; renderState() }
-            view<Button>(R.id.showRecovery)?.setOnClickListener { recoveryCollapsed = false; renderState() }
             view<Button>(R.id.stopRecording)?.apply {
                 setOnClickListener { stopAndTranscribe() }
                 setOnLongClickListener { if (state == RecordingPhase.CAPTURING) stopAndKeep(); true }
@@ -319,6 +351,10 @@ class OverlayService : Service() {
 
     private inline fun <reified T : View> view(id: Int): T? = bubble?.findViewById(id)
 
+    private fun hasSavedText(): Boolean = recoveries.snapshot().let { it.items.isNotEmpty() || it.unreadable || it.writeFailed }
+
+    private val audioPanelVisible: Boolean get() = state == RecordingPhase.INTERRUPTED && !audioCollapsed
+
     private fun layoutPanel(update: Boolean = true) {
         val panel = bubble ?: return
         val oldBounds = listOf(parameters.x, parameters.y, parameters.width, parameters.height)
@@ -330,8 +366,7 @@ class OverlayService : Service() {
         val width = when {
             state == RecordingPhase.CAPTURING && indicator == RecordingIndicator.MINIMAL -> 64
             state == RecordingPhase.CAPTURING && indicator == RecordingIndicator.COMPACT -> 236
-            state == RecordingPhase.CAPTURING || state == RecordingPhase.INTERRUPTED || recoveryVisible -> 320
-            view<View>(R.id.showRecovery)?.visibility == View.VISIBLE -> 256
+            state == RecordingPhase.CAPTURING || audioPanelVisible || recoveryVisible -> 320
             else -> 64 // 56dp bubble plus its 4dp padding on each side
         }
         parameters.width = dp(width).coerceAtMost(screen.widthPixels - dp(24))
@@ -362,16 +397,21 @@ class OverlayService : Service() {
 
     private fun renderState(updateLayout: Boolean = true) {
         val snapshot = recoveries.snapshot()
-        view<View>(R.id.audioRecoveryPanel)?.visibility = if (state == RecordingPhase.INTERRUPTED) View.VISIBLE else View.GONE
+        val interrupted = state == RecordingPhase.INTERRUPTED
+        val audioReady = !client.admission.isHeld && !audioRecorder.hasWriter
+        view<View>(R.id.audioRecoveryPanel)?.visibility = if (audioPanelVisible) View.VISIBLE else View.GONE
         view<TextView>(R.id.audioRecoveryStatus)?.text = session.message
-        view<View>(R.id.retryAudio)?.isEnabled = !client.admission.isHeld && !audioRecorder.hasWriter
-        view<View>(R.id.manageAudio)?.isEnabled = !client.admission.isHeld && !audioRecorder.hasWriter
+        view<View>(R.id.retryAudio)?.isEnabled = audioReady
+        view<Button>(R.id.discardAudio)?.apply {
+            isEnabled = audioReady
+            setText(if (SystemClock.elapsedRealtime() < discardArmedUntil) R.string.confirm_discard_audio else R.string.discard_recovery)
+        }
         val item = selectedRecovery()
         val hasRecovery = item != null || snapshot.unreadable || snapshot.writeFailed
         recoveryVisible = state == RecordingPhase.IDLE && hasRecovery && !recoveryCollapsed
         val recording = state == RecordingPhase.CAPTURING
         val minimal = recording && indicator == RecordingIndicator.MINIMAL
-        view<View>(R.id.idlePanel)?.visibility = if ((recording && !minimal) || recoveryVisible || state == RecordingPhase.INTERRUPTED) View.GONE else View.VISIBLE
+        view<View>(R.id.idlePanel)?.visibility = if ((recording && !minimal) || recoveryVisible || audioPanelVisible) View.GONE else View.VISIBLE
         view<View>(R.id.recordingPanel)?.visibility = if (recording && indicator == RecordingIndicator.DETAILED) View.VISIBLE else View.GONE
         view<View>(R.id.compactPanel)?.visibility = if (recording && indicator == RecordingIndicator.COMPACT) View.VISIBLE else View.GONE
         view<View>(R.id.recordingRing)?.visibility = if (minimal) View.VISIBLE else View.INVISIBLE
@@ -379,8 +419,10 @@ class OverlayService : Service() {
         renderPulse(recording)
         view<View>(R.id.recoveryPanel)?.visibility = if (recoveryVisible) View.VISIBLE else View.GONE
         view<ImageButton>(R.id.dictationButton)?.apply {
-            imageAlpha = if (state == RecordingPhase.IDLE || minimal) 255 else 0
-            isEnabled = session.canStart(editorVisible && isEnabled(this@OverlayService), snapshot.canCapture && !recoveryAction) || minimal
+            imageAlpha = if (state == RecordingPhase.IDLE || minimal || interrupted) 255 else 0
+            // While audio is kept, the bubble opens its options instead of looking dead.
+            isEnabled = session.canStart(editorVisible && isEnabled(this@OverlayService), snapshot.canCapture && !recoveryAction) ||
+                minimal || interrupted || (state == RecordingPhase.IDLE && hasRecovery && !recoveryAction)
             setImageResource(if (minimal) R.drawable.ic_dictation_stop else R.drawable.se_mic)
             setBackgroundResource(if (minimal) R.drawable.dictation_circle_recording else R.drawable.dictation_circle)
             imageTintList = android.content.res.ColorStateList.valueOf(getColor(if (minimal) R.color.se_mint else R.color.se_on_mint))
@@ -389,14 +431,10 @@ class OverlayService : Service() {
             contentDescription = when {
                 minimal -> getString(R.string.finish_dictation)
                 state == RecordingPhase.IDLE -> "Start dictation"
+                interrupted -> getString(R.string.recording_kept)
                 state == RecordingPhase.STARTING -> "Preparing microphone"
                 else -> "Transcribing"
             }
-        }
-        view<Button>(R.id.showRecovery)?.apply {
-            visibility = if (state == RecordingPhase.IDLE && hasRecovery && recoveryCollapsed) View.VISIBLE else View.GONE
-            text = if (snapshot.items.isEmpty()) "Recovery needs attention" else getString(R.string.saved_text_count, snapshot.items.size)
-            isEnabled = !recoveryAction
         }
         view<Button>(R.id.collapseRecovery)?.isEnabled = !recoveryAction
         view<ProgressBar>(R.id.dictationProgress)?.visibility = if (state == RecordingPhase.STARTING || state == RecordingPhase.TRANSCRIBING) View.VISIBLE else View.GONE
@@ -409,7 +447,7 @@ class OverlayService : Service() {
             snapshot.unreadable -> "Saved recovery file is unreadable. Discard unreadable data to resume."
             snapshot.writeFailed -> "Could not update storage. An inserted transcript may reappear. Check it before inserting again."
             snapshot.items.size >= RecoveryStore.CAPACITY -> "5 saved; recording paused until you insert or discard one. Expires after 24 hours."
-            else -> "Saved privately for 24 hours, even with the keyboard closed. Tap a text box, then Insert here. Your clipboard stays unchanged."
+            else -> "Kept privately for 24 hours."
         }
         view<View>(R.id.recoveryScroll)?.visibility = if (item != null) View.VISIBLE else View.GONE
         view<View>(R.id.recoveryActions)?.visibility = if (item != null) View.VISIBLE else View.GONE
@@ -448,12 +486,11 @@ class OverlayService : Service() {
         operation = scope.launch {
             try {
                 val selected = requested ?: TextInjectorService.instance?.captureTargetForDictation()?.let { target ->
+                    // The field itself is the destination; keyboard and editor events while recording don't invalidate it.
                     RecordingDestination(target.dictationContext, {
-                        TextInjectorService.instance?.captureTarget()?.let {
-                            it.generation == target.generation && it.node == target.node
-                        } == true
+                        TextInjectorService.instance?.originalFieldAvailable(target) == true
                     }) { text ->
-                        when (TextInjectorService.instance?.insertForDictation(target, text)) {
+                        when (TextInjectorService.instance?.insertIntoOriginalField(target, text)) {
                             TextInjectorService.InsertResult.INSERTED -> TextDelivery.CONFIRMED
                             TextInjectorService.InsertResult.SENT_UNCONFIRMED -> TextDelivery.UNCONFIRMED
                             else -> TextDelivery.NOT_SENT
@@ -622,21 +659,38 @@ class OverlayService : Service() {
                 toast("Inserted, but recovery removal was not saved. Check before inserting again.")
             }
         } else {
-            recoveryCollapsed = false
+            // Saved quietly: a short message, never a card that pops up by itself.
             recoveryIndex = recoveries.snapshot().items.indexOfFirst { it.id == item?.id }.coerceAtLeast(0)
             if (delivery == TextDelivery.UNCONFIRMED) {
                 unconfirmedRecoveryId = item?.id
-                toast("Insertion could not be confirmed. Check the field before inserting again; your saved text is kept.")
-            } else toast("Transcript kept in Speakeasy. Tap a text box, then Insert here.")
+                toast("Check the text box; the text may already be there. A copy is saved.")
+            } else shortToast("Saved. Hold the mic to insert it.")
         }
         destination = null
         setSession(RecordingSession())
         if (!isEnabled(this)) stopSelf()
     }
 
-    private fun failedAudio(audio: DurablePcmStore.Capture, failure: Exception) {
+    private suspend fun failedAudio(audio: DurablePcmStore.Capture, failure: Exception) {
         if (destroyed || session.id != audio.id) return
         destination = null
+        if (failure is NoSpeechException) {
+            // A silent recording (an accidental tap) holds nothing to recover, so it goes quietly.
+            val silent = withContext(NonCancellable + Dispatchers.IO) {
+                PcmLevel.holdsNoSpeech(audio.pcm) && audioStore.remove(audio)
+            }
+            if (destroyed || session.id != audio.id) return
+            if (silent) {
+                pendingAudio = null
+                setSession(RecordingSession())
+                shortToast("No speech heard")
+                if (!isEnabled(this)) stopSelf()
+                return
+            }
+            setSession(session.interrupted("Couldn't make out any words. Recording kept."))
+            shortToast(session.message)
+            return
+        }
         setSession(session.interrupted(failure.message ?: "Transcription interrupted. Audio kept."))
         toast(session.message)
     }
@@ -649,6 +703,7 @@ class OverlayService : Service() {
             if (withContext(Dispatchers.IO) { audioStore.remove(audio) }) {
                 pendingAudio = null
                 setSession(RecordingSession())
+                shortToast("Recording discarded")
                 if (!isEnabled(this@OverlayService)) stopSelf()
             } else setSession(session.interrupted("Could not discard audio. Storage needs attention."))
         }
@@ -774,6 +829,10 @@ class OverlayService : Service() {
 
     private fun toast(text: String) {
         if (!destroyed) Toast.makeText(this, text, Toast.LENGTH_LONG).show()
+    }
+
+    private fun shortToast(text: String) {
+        if (!destroyed) Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()

@@ -13,6 +13,8 @@ data class RecordingSession(
         phase == RecordingPhase.IDLE && eligible && recoveryReady
     val canStop: Boolean get() = phase == RecordingPhase.CAPTURING
     val keepsIndicator: Boolean get() = phase != RecordingPhase.IDLE
+    /** An open microphone stays visible everywhere; everything else waits for the next text box. */
+    val showsWithoutEditor: Boolean get() = phase == RecordingPhase.STARTING || phase == RecordingPhase.CAPTURING
     fun editorChanged(): RecordingSession = this
     fun stop(): RecordingSession = if (canStop) copy(phase = RecordingPhase.TRANSCRIBING) else this
     fun interrupted(reason: String): RecordingSession =

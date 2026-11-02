@@ -13,11 +13,19 @@ independently of the keyboard, editor, or current screen.
 - An interruption preserves captured audio. Recovery never restarts the
   microphone automatically or sends retained audio to a newly configured cloud
   provider.
-- A changed editor cannot receive a stale automatic insertion. Completed text
-  remains available for deliberate insertion or copying.
-- Saved text stays available in the floating card when the keyboard closes. Insert
-  here uses the current input at the moment of the tap; it never writes to the
-  system clipboard. Copy remains an explicitly separate action.
+- When recording finishes, the text goes into the field it started in, even if
+  the keyboard closed, reopened or restarted meanwhile (revised 2 November 2026).
+  It is inserted only if that field is still on screen, no other field has focus,
+  and its contents are exactly as they were at the start. Anything else (another
+  field, another screen, a changed draft that may be a different conversation)
+  saves the text quietly with a short message.
+- Nothing pops up by itself and nothing floats without a focused text box, except
+  an active recording. Saved text opens by holding the mic; kept audio opens by
+  tapping it. Every card closes with Later, and leaving the text box folds it away.
+  Insert here uses the current input at the moment of the tap; it never writes to
+  the system clipboard. Copy remains an explicitly separate action.
+- A recording with no speech (near-silence, or a steady hum with nothing rising
+  above it) is discarded with a brief "No speech heard"; anything doubtful is kept.
 
 ## Reopening an editor
 

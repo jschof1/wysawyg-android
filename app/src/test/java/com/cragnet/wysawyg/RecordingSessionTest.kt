@@ -11,6 +11,7 @@ class RecordingSessionTest {
         assertEquals(recording, state)
         assertTrue(state.canStop)
         assertTrue(state.keepsIndicator)
+        assertTrue(state.showsWithoutEditor)
         assertFalse(state.canStart(eligible = false, recoveryReady = true))
     }
 
@@ -22,6 +23,7 @@ class RecordingSessionTest {
         assertEquals(RecordingPhase.TRANSCRIBING, stopped.phase)
         assertEquals(stopped, stopped.stop())
         assertFalse(stopped.canStop)
+        assertFalse(stopped.showsWithoutEditor)
         assertFalse(stopped.canStart(true, true))
     }
 
@@ -31,6 +33,7 @@ class RecordingSessionTest {
         assertEquals(RecordingPhase.INTERRUPTED, interrupted.editorChanged().phase)
         assertFalse(interrupted.canStart(true, true))
         assertTrue(interrupted.keepsIndicator)
+        assertFalse(interrupted.showsWithoutEditor)
         assertEquals(interrupted, interrupted.stop())
     }
 }
