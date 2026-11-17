@@ -107,6 +107,7 @@ jobs:
       - name: Upload release bundle
         uses: actions/upload-artifact@v5
         with:
+          retention-days: 30
           name: speakeasy-release-${{ inputs.signed_release == true && 'signed' || 'unsigned' }}
           path: app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
@@ -115,6 +116,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
+          retention-days: 14
           name: release-verification
           path: |
             app/build/reports/
@@ -124,6 +126,7 @@ jobs:
       - name: Upload submission materials
         uses: actions/upload-artifact@v5
         with:
+          retention-days: 30
           name: play-submission-materials
           path: |
             docs/google-play/
@@ -133,6 +136,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v5
         with:
+          retention-days: 14
           name: wysawyg-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
@@ -140,6 +144,7 @@ jobs:
       - name: Upload device-test APK
         uses: actions/upload-artifact@v5
         with:
+          retention-days: 14
           name: speakeasy-device-test-apk
           path: app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
           if-no-files-found: error
