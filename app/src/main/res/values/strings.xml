@@ -50,6 +50,8 @@
     <string name="style_match_app">Match style to the app</string>
     <string name="style_fillers">Remove filler words (um, uh, erm)</string>
     <string name="style_commands">Voice commands</string>
+    <string name="style_numbers">Write numbers as digits</string>
+    <string name="style_numbers_help">“Twenty five” becomes 25, “three thirty” becomes 3:30 and “the fifth of May” becomes the 5th of May. A lone “one”, as in “the blue one”, stays a word.</string>
     <string name="style_commands_hint">Say “new line” or “new paragraph” to break lines, and “scratch that” to delete the last phrase. Corrections like “at 5, no wait, 6” keep only the fix.</string>
     <string name="style_smart">Smart cleanup (on-device AI)</string>
     <string name="style_smart_hint">A small language model splits run-on sentences and adds missing question marks and list commas. Runs on your phone and is never allowed to change your words.</string>

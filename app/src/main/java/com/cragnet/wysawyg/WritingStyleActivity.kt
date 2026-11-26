@@ -68,6 +68,7 @@ class WritingStyleActivity : AppCompatActivity() {
         switch(R.id.matchAppSwitch) { copy(matchApp = it) }
         switch(R.id.fillerSwitch) { copy(removeFillers = it) }
         switch(R.id.commandsSwitch) { copy(voiceCommands = it) }
+        switch(R.id.numbersSwitch) { copy(numbersAsDigits = it) }
         findViewById<MaterialSwitch>(R.id.smartCleanupSwitch).setOnCheckedChangeListener { _, checked ->
             if (!rendering) setSmartCleanup(checked)
         }
@@ -112,6 +113,7 @@ class WritingStyleActivity : AppCompatActivity() {
         findViewById<MaterialSwitch>(R.id.matchAppSwitch).isChecked = settings.matchApp
         findViewById<MaterialSwitch>(R.id.fillerSwitch).isChecked = settings.removeFillers
         findViewById<MaterialSwitch>(R.id.commandsSwitch).isChecked = settings.voiceCommands
+        findViewById<MaterialSwitch>(R.id.numbersSwitch).isChecked = settings.numbersAsDigits
         findViewById<MaterialSwitch>(R.id.smartCleanupSwitch).isChecked = settings.smartCleanup
         rendering = false
         findViewById<TextView>(R.id.matchHelp).setText(

@@ -103,6 +103,7 @@ data class StyleSettings(
     val removeFillers: Boolean = true,
     val voiceCommands: Boolean = true,
     val smartCleanup: Boolean = false,
+    val numbersAsDigits: Boolean = true,
     val styles: Map<AppCategory, WritingStyle> = AppCategory.values().associateWith { it.defaultStyle }
 ) {
     fun styleFor(category: AppCategory): WritingStyle = styles[category] ?: category.defaultStyle
@@ -112,6 +113,7 @@ data class StyleSettings(
         putBoolean(KEY_FILLERS, removeFillers)
         putBoolean(KEY_COMMANDS, voiceCommands)
         putBoolean(KEY_SMART, smartCleanup)
+        putBoolean(KEY_NUMBERS, numbersAsDigits)
         styles.forEach { (category, style) -> putString(KEY_STYLE_PREFIX + category.key, style.key) }
     }
 
@@ -120,8 +122,9 @@ data class StyleSettings(
         const val KEY_FILLERS = "style_remove_fillers"
         const val KEY_COMMANDS = "style_voice_commands"
         const val KEY_SMART = "style_smart_cleanup"
+        const val KEY_NUMBERS = "style_numbers_as_digits"
         const val KEY_STYLE_PREFIX = "style_for_"
-        val BOOLEAN_KEYS = listOf(KEY_MATCH_APP, KEY_FILLERS, KEY_COMMANDS, KEY_SMART)
+        val BOOLEAN_KEYS = listOf(KEY_MATCH_APP, KEY_FILLERS, KEY_COMMANDS, KEY_SMART, KEY_NUMBERS)
         val STYLE_KEYS get() = AppCategory.values().map { KEY_STYLE_PREFIX + it.key }
 
         /** Keeps only well-typed values, so a hand-edited import can never break loading. */
@@ -140,6 +143,7 @@ data class StyleSettings(
                 flag(KEY_FILLERS, true),
                 flag(KEY_COMMANDS, true),
                 flag(KEY_SMART, false),
+                flag(KEY_NUMBERS, true),
                 AppCategory.values().associateWith {
                     WritingStyle.fromKey(stored[KEY_STYLE_PREFIX + it.key] as? String) ?: it.defaultStyle
                 }

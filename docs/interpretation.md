@@ -24,6 +24,18 @@ inserts the raw transcript instead.
    (dropping filler words is the only other change allowed). Skipped for short fields, very casual
    style and fewer than four words; abandoned after 8 seconds.
 3. **Finish** (`DictationFormatter.finish`)
+   - Numbers as digits (`SpokenNumbers`, on by default, Settings → Writing style): "twenty
+     five" → 25, "one hundred and twenty" → 120, "forty five thousand" → 45,000 (separators
+     from 10,000, so years stay 2026), "two point five" → 2.5, "two million" → 2 million,
+     "twenty first" → 21st, "three thirty" → 3:30, "twenty twenty six" → 2026, three or more
+     single digits ("oh seven seven double oh…") run together as a phone number. Times of day
+     use one form: "three pm", "3PM", "3 p m" → "3 p.m.", "five thirty pm" → "5:30 p.m."
+     (hours 1 to 12 only). The dot after a.m./p.m. is not treated as a full stop, so styles
+     keep it and the next word is not capitalised. Other unit words (pounds, percent) stay
+     as said. Left as words: a lone "one" unless a unit, time or
+     "at"/"number" cue marks it ("the blue one", "no one", "at one point"); "a hundred" and
+     "a million" on their own; "first", "second", "third" outside dates. Runs after Smart
+     cleanup, because `keepsWords` compares the spoken words.
    - App style. Categories follow Wispr Flow: Personal messages, Work messages, Email,
      Everything else. Each can be Formal, Casual or Very casual (Settings → Writing style).
      - Formal: capitals, full punctuation, adds a final full stop.

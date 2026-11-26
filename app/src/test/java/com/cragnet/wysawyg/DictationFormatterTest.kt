@@ -71,7 +71,7 @@ class DictationFormatterTest {
         assertEquals("I'll text her later.", format("I'll call Sarah, no wait, I'll text her later.", notes))
         assertEquals("Meet me at 6 tomorrow.", format("Meet me at 5, no wait, 6 tomorrow.", notes))
         // As the bundled speech engine actually punctuates it.
-        assertEquals("Hey yeah I'm running a bit late. I'll be there at six. Did you want me to grab anything on the way?",
+        assertEquals("Hey yeah I'm running a bit late. I'll be there at 6. Did you want me to grab anything on the way?",
             format("Hey, um yeah, I'm running a bit late. I'll be there at five. No wait. Six. Did you want me to grab anything on the way?"))
         assertEquals("Ask Sarah.", format("Ask Tom. No wait. Sarah.", notes))
         assertEquals("Can you ask Sarah to send me the invoice by Thursday.",
@@ -81,7 +81,7 @@ class DictationFormatterTest {
         assertEquals("Send the invoice to Tom on Friday, no wait, Sarah.", format("Send the invoice to Tom on Friday, no wait, Sarah.", notes))
         assertEquals("Please ask Tom to send the invoice, actually Thursday.", format("Please ask Tom to send the invoice, actually Thursday.", notes))
         assertEquals("Do not send the invoice. No wait. Send it now.", format("Do not send the invoice. No wait. Send it now.", notes))
-        assertEquals("Please transfer five thousand pounds, no wait, six.", format("Please transfer five thousand pounds. No wait. Six.", notes))
+        assertEquals("Please transfer 5000 pounds, no wait, 6.", format("Please transfer five thousand pounds. No wait. Six.", notes))
         assertEquals("Do not send it, no wait, send it now.", format("Do not send it, no wait, send it now.", notes))
         assertEquals("Pick the blue one.", format("Pick the red one, no wait, the blue one.", notes))
         assertEquals("Please make that payment today.", format("Please make that payment today.", notes))

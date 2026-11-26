@@ -3,7 +3,8 @@ package com.cragnet.wysawyg
 /**
  * Deterministic, instant interpretation of a raw transcript for its destination: voice
  * commands, filler words, the app's writing style and the text already around the cursor.
- * It only removes words or changes punctuation, spacing and capitals; it never adds words.
+ * It only removes words, writes spoken numbers as digits, or changes punctuation, spacing and
+ * capitals; it never adds words.
  */
 object DictationFormatter {
     private const val INTERJECTIONS = "yeah|yes|yep|yup|yea|no|nope|nah|ok|okay|oh|so|well|hey|hi|hiya|hello|right|" +
@@ -44,6 +45,8 @@ object DictationFormatter {
     fun finish(prepared: String, context: DictationContext, settings: StyleSettings): String {
         var text = tidy(prepared)
         if (text.isEmpty()) return text
+        // After the optional model pass, which must see the words exactly as spoken.
+        if (settings.numbersAsDigits) text = SpokenNumbers.format(text)
         if (context.isShortField) return text.replace('\n', ' ').trimEnd('.').trim()
         val style = if (settings.matchApp) settings.styleFor(context.category) else null
         text = when (style) {
@@ -235,13 +238,17 @@ object DictationFormatter {
             val keep = iWords.containsMatchIn(word) || (word.length > 1 && word.all { !it.isLetter() || it.isUpperCase() })
             match.groupValues[1] + if (keep) match.groupValues[2] else match.groupValues[2].lowercase()
         }
-        return lowered.replace(",", "")
-            .replace(Regex("""(?<![.\s])\.(?!\.)(?=\s|$)"""), "")
+        // Keeps thousands separators such as 25,000.
+        return lowered.replace(Regex(""",(?!\d{3}(?!\d))|(?<!\d),"""), "")
+            .replace(Regex("""(?<![.\s])(?<![ap]\.m)\.(?!\.)(?=\s|$)"""), "")
             .replace(Regex("""[ \t]+"""), " ").trim(' ', '\t')
     }
 
-    private fun capitaliseSentences(input: String): String =
-        sentenceStart.replace(input) { it.groupValues[1] + it.groupValues[2].uppercase() }
+    /** The dot after "3 p.m." is not a sentence end, so the next word keeps its case. */
+    private fun capitaliseSentences(input: String): String = sentenceStart.replace(input) {
+        if (SpokenNumbers.endsWithTime(input.substring(0, it.range.first + 1))) it.value
+        else it.groupValues[1] + it.groupValues[2].uppercase()
+    }
 
     /** Fits the transcript into the sentence the cursor is already in. */
     private fun fitCursor(input: String, context: DictationContext, style: WritingStyle?): String {
@@ -257,7 +264,7 @@ object DictationFormatter {
         } else if (style != null && style != WritingStyle.VERY_CASUAL) {
             text = text.replaceFirstChar { it.uppercase() }
         }
-        val endsWithStop = text.endsWith('.') && !text.endsWith("..")
+        val endsWithStop = text.endsWith('.') && !text.endsWith("..") && !SpokenNumbers.endsWithTime(text)
         val next = after.firstOrNull()
         when {
             // Existing punctuation, or a word that may continue this sentence, follows the cursor.

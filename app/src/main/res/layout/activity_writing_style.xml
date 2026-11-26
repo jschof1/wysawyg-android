@@ -171,6 +171,23 @@
                         android:layout_marginTop="12dp" />
 
                     <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/numbersSwitch"
+                        style="@style/SE.SwitchRow"
+                        android:paddingStart="20dp"
+                        android:paddingEnd="20dp"
+                        android:text="@string/style_numbers" />
+
+                    <TextView
+                        style="@style/SE.Meta"
+                        android:paddingStart="20dp"
+                        android:paddingEnd="20dp"
+                        android:text="@string/style_numbers_help" />
+
+                    <View
+                        style="@style/SE.Divider"
+                        android:layout_marginTop="12dp" />
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/smartCleanupSwitch"
                         style="@style/SE.SwitchRow"
                         android:paddingStart="20dp"
