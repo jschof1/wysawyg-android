@@ -91,3 +91,14 @@ Results on an Android 14 arm64 emulator (Apple Silicon, 27 Oct 2026):
 Smart cleanup took about 2 s warm and 4–6 s including model load on the emulator CPU. It
 sometimes splits sentences wrongly while keeping every word ("Did you get home? Ok and did
 you tell Sam?"), which is why it stays optional.
+
+## Numbers as digits: handset install
+
+Version 1.8.0 (14), commit `318469c`, was installed in place on the Samsung SM-A556E
+over wireless debugging on 26 November 2026, replacing 1.7.1 (13). The installed version
+and original install time were verified, the text-insertion accessibility service stayed
+enabled, and `shared_prefs/wysawyg.xml`, `shared_prefs/speakeasy_privacy.xml` and
+`no_backup/recovered-transcripts.bin` matched their pre-update checksums. The receipt is on
+Jack Drive at `Mac-Offload/Play-Releases/speakeasy-1.8.0-318469c/phone-install-20261126.json`.
+The number and time rules are covered by `SpokenNumbersTest`; dictation on the handset was
+left to the owner.
